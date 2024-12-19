@@ -27,7 +27,7 @@ All the dependencies are located in the <em>dependencies.jl</em> file. Simply ru
   
 ## Authors ##
 
-- Lennox Keeble
+- [Lennox Keeble](https://lennoxkeeble.github.io)
 - [Alejandro Cardenas-Avendano](https://alejandroc137.bitbucket.io)
 
 Last updated: 10.06.2024
