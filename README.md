@@ -30,7 +30,7 @@ All the dependencies are located in the <em>dependencies.jl</em> file. Simply ru
 - [Lennox Keeble](https://lennoxkeeble.github.io)
 - [Alejandro Cardenas-Avendano](https://alejandroc137.bitbucket.io)
 
-Last updated: 10.06.2024
+Last updated: 12.19.2024
 
 ## References ##
 [1] Schmidt, W. Celestial mechanics in Kerr spacetime. [arXiv:gr-qc/0202090](https://arxiv.org/abs/gr-qc/0202090)
