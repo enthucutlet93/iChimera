@@ -394,6 +394,10 @@ function waveform_moments_fname(a::Float64, p::Float64, e::Float64, θmin::Float
     return data_path * "Waveform_moments_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_BL_fourier_"*fit*"_fit.jld2"
 end
 
+function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, Θ::Float64, Φ::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_obsTheta_$(round(Θ; digits=3))_obsPhi_$(round(Φ; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_BL_fourier_"*fit*"_fit.jld2"
+end
+
 function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
     sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
     h5f = h5open(sol_filename, "r")
@@ -448,7 +452,33 @@ function compute_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Fl
 
     # project h_{ij} tensor
     h_plus, h_cross = Waveform.h_plus_cross(hij, Θ, Φ);
-    return h_plus, h_cross
+    
+    # load time array
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+    h5f = h5open(sol_filename, "r")
+    t = h5f["t"][:]
+    close(h5f)
+
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, nHarm, fit_time_range_factor, fit, data_path)
+    h5open(wave_filename, "w") do file
+        file["t"] = t
+        file["hplus"] = h_plus
+        file["hcross"] = h_cross
+    end
+    println("File created: " * wave_filename)
+    return t, h_plus, h_cross
+end
+
+function load_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, nHarm, fit_time_range_factor, fit, data_path)
+    file = h5open(wave_filename, "r")
+    t = file["t"][:]
+    h_plus = file["hplus"][:]
+    h_cross = file["hcross"][:]
+    close(file)
+    return t, h_plus, h_cross    
 end
 
 # useful for dummy runs (e.g., for resonances to estimate the duration of time needed by computing the time derivative of the fundamental frequencies)
@@ -824,6 +854,11 @@ function waveform_moments_fname(a::Float64, p::Float64, e::Float64, θmin::Float
     return data_path * "Waveform_moments_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.jld2"
 end
 
+function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, Θ::Float64, Φ::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_obsTheta_$(round(Θ; digits=3))_obsPhi_$(round(Φ; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.jld2"
+end
+
+
 function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
     sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
     h5f = h5open(sol_filename, "r")
@@ -881,8 +916,32 @@ function compute_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64,a::Flo
 
     # project h_{ij} tensor
     h_plus, h_cross = Waveform.h_plus_cross(hij, Θ, Φ);
-    return h_plus, h_cross
+    # load time array
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+    h5f = h5open(sol_filename, "r")
+    t = h5f["t"][:]
+    close(h5f)
 
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, nHarm, fit_time_range_factor, fit, data_path)
+    h5open(wave_filename, "w") do file
+        file["t"] = t
+        file["hplus"] = h_plus
+        file["hcross"] = h_cross
+    end
+    println("File created: " * wave_filename)
+    return t, h_plus, h_cross
+end
+
+function load_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64,a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, nHarm, fit_time_range_factor, fit, data_path)
+    file = h5open(wave_filename, "r")
+    t = file["t"][:]
+    h_plus = file["hplus"][:]
+    h_cross = file["hcross"][:]
+    close(file)
+    return t, h_plus, h_cross    
 end
 
 function delete_EMRI_data(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
@@ -1197,6 +1256,10 @@ function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::F
     return data_path * "EMRI_sol_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_h_$(h)_Mino_fdm.h5"
 end
 
+function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, Θ::Float64, Φ::Float64, h::Float64, data_path::String)
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_obsTheta_$(round(Θ; digits=3))_obsPhi_$(round(Φ; digits=3))_h_$(h)_Mino_fdm.h5"
+end
+
 function waveform_moments_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, data_path::String)
     return data_path *  "Waveform_moments_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_h_$(h)_Mino_fdm.jld2"
 end
@@ -1257,7 +1320,33 @@ function compute_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Fl
 
     # project h_{ij} tensor
     h_plus, h_cross = Waveform.h_plus_cross(hij, Θ, Φ);
-    return h_plus, h_cross
+    
+    # load time array
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, h, data_path)
+    h5f = h5open(sol_filename, "r")
+    t = h5f["t"][:]
+    close(h5f)
+
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, h, data_path)
+    h5open(wave_filename, "w") do file
+        file["t"] = t
+        file["hplus"] = h_plus
+        file["hcross"] = h_cross
+    end
+    println("File created: " * wave_filename)
+end
+
+
+function load_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, data_path::String)
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, Θ, Φ, h, data_path)
+    file = h5open(wave_filename, "r")
+    t = file["t"][:]
+    h_plus = file["hplus"][:]
+    h_cross = file["hcross"][:]
+    close(file)
+    return t, h_plus, h_cross
 end
 
 function delete_EMRI_data(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, data_path::String)

@@ -1,6 +1,6 @@
 include("../main.jl");
 
-### CONSTANTS ###
+# constants
 c = 2.99792458 * 1e8; Grav_Newton = 6.67430 * 1e-11; Msol = (1.988) * 1e30; year = 365 * 24 * 60 * 60;
 
 # (initial) orbital parameters
@@ -12,7 +12,7 @@ p = 7.0;                                                # semi-latus rectum
 # specify your favourite inclination angle (in degrees)
 inclination = 57.39;
 sign_Lz = inclination < 90.0 ? 1 : -1;                  # prograde versus retrograde orbit
-iota = true; inferior_english_I = !iota;                # use iota (Eq. 25 of arXiv:1109.0572v2) or I (Eq. 1.2 of arXiv:2401.09577v2)
+iota = true; I = !iota;                                 # use iota: cos(ι) = Lz / sqrt(Lz^2 + C) (Eq. 25 of arXiv:1109.0572v2) or I = π/2 - sign(Lz) * θmin (Eq. 1.2 of arXiv:2401.09577v2)
 
 if iota
     θmin = InclinationMappings.iota_to_theta_min(a, p, e, inclination)
@@ -33,13 +33,12 @@ phi0 = 0.0;                                             # initial azimuthal angl
 
 # waveform parameters
 obs_distance = 1.;
-Θ=π/4; Φ=0.;   # observer latitude and azimuth
+Θ=π/4; Φ=0.;                                            # observer latitude and azimuth
 
 # file paths
 results_path = "../Results";
 data_path=results_path * "/Data/";
 plot_path=results_path * "/Plots/";
-
 mkpath(data_path);
 mkpath(plot_path);
 

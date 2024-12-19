@@ -109,8 +109,7 @@ Computes geodesic trajectory in Kerr characterized by a, p, e, θmin (M=1, μ=1)
 - `nothing` if save_to_file=true, otherwise returns the geodesic trajectory and its first and second derivatives as a tuple.
 
 # Notes
-- We have chosen to specify the number of points in the geodesic and the total time range, but we could have also chosen to specify the time step and total time range, or the time step and the number of points. In order to be good physicists, then,
-we state that the follow key assumption of our implementation--- Assumption 1: the user can convert between these different ways of specifying the resolution and the time range of the geodesic!
+- We have chosen to specify the number of points in the geodesic and the total time range, but we could have also chosen to specify the time step and total time range, or the time step and the number of points.
 - There are a few key word arguments set to zero which the user can specify if they wish. The rationale here is that one might want to solve the geodesic equation many times iteratively, pausing in between to do some calculations. This allows
 one to ``pause'' the geodesic and return at some desired point. However, if the computations one performs between such geodesic computations are faster than ~1ms, then it is probably wiser to not reuse this function iteratively because it exits the
 geodesic solver after each computation, which is slower than using DifferentialEquation's integrator interface, which allows one to dynamically step through the integation. For an example of this in the context of this module and package, see the
