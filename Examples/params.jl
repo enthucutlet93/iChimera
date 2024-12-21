@@ -33,7 +33,10 @@ phi0 = 0.0;                                             # initial azimuthal angl
 
 # waveform parameters
 obs_distance = 1.;
-Θ=π/4; Φ=0.;                                            # observer latitude and azimuth
+ThetaSource = 0.0;                                      # EMRI system polar orientation in solar system barycenter (SSB) frame
+PhiSource = 1.5;                                        # EMRI system azimuthal orientation in SSB frame
+ThetaKerr = 0.0;                                        # MBH spin polar orientation in SSB frame
+PhiKerr = 1.4;                                          # MBH spin azimuthal orientation in SSB frame
 
 # file paths
 results_path = "../Results";

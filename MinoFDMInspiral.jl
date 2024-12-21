@@ -457,7 +457,7 @@ function load_constants_of_motion(a::Float64, p::Float64, e::Float64, θmin::Flo
     return t_Fluxes, EE, Edot, LL, Ldot, QQ, Qdot, CC, Cdot, pArray, ecc, θmin
 end
 
-function compute_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, data_path::String)
+function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, data_path::String)
     # load waveform multipole moments
     waveform_filename=data_path * "Waveform_moments_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_h_$(h)_Mino_fdm_turbo.jld2"
     waveform_data = load(waveform_filename)["data"]
@@ -470,10 +470,8 @@ function compute_waveform(obs_distance::Float64, Θ::Float64, Φ::Float64, a::Fl
     # compute h_{ij} tensor
     num_points = length(Mij2[1, 1]);
     hij = [zeros(num_points) for i=1:3, j=1:3];
-    Waveform.hij!(hij, num_points, obs_distance, Θ, Φ, Mij2, Mijk3, Mijkl4, Sij2, Sijk3)
+    h_plus, h_cross = Waveform.compute_wave_polarizations!(hij, num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3)
 
-    # project h_{ij} tensor
-    h_plus, h_cross = Waveform.h_plus_cross(hij, Θ, Φ);
     return h_plus, h_cross
 end
 
