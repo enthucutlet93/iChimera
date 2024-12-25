@@ -395,7 +395,7 @@ function waveform_moments_fname(a::Float64, p::Float64, e::Float64, θmin::Float
 end
 
 function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_BL_fourier_"*fit*"_fit.jld2"
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_BL_fourier_"*fit*"_fit.h5"
 end
 
 function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
@@ -850,7 +850,7 @@ function waveform_moments_fname(a::Float64, p::Float64, e::Float64, θmin::Float
 end
 
 function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.jld2"
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.h5"
 end
 
 
