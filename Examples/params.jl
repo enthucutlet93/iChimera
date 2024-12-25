@@ -15,10 +15,18 @@ sign_Lz = inclination < 90.0 ? 1 : -1;                  # prograde versus retrog
 iota = true; I = !iota;                                 # use iota: cos(ι) = Lz / sqrt(Lz^2 + C) (Eq. 25 of arXiv:1109.0572v2) or I = π/2 - sign(Lz) * θmin (Eq. 1.2 of arXiv:2401.09577v2)
 
 if iota
-    θmin = InclinationMappings.iota_to_theta_min(a, p, e, inclination)
+    if inclination == 0.0
+        θmin = π/2
+    else
+        θmin = InclinationMappings.iota_to_theta_min(a, p, e, inclination)
+    end
     # println("ι = $(inclination) degrees => θmin = $(θmin) radians")
 else
-    θmin = InclinationMappings.I_to_theta_min(inclination, sign_Lz)
+    if inclination == 0.0
+        θmin = π/2
+    else
+        θmin = InclinationMappings.I_to_theta_min(inclination, sign_Lz)
+    end
     # println("I = $(inclination) degrees => θmin = $(θmin) radians ")
 end
 
