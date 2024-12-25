@@ -53,6 +53,12 @@ plot_path=results_path * "/Plots/";
 mkpath(data_path);
 mkpath(plot_path);
 
+# compute multiplicative factor to convert GW strain into SI units
+pc = 3.08568025e16; # parsec in meters
+length_conversion_factor = Grav_Newton * Mass_MBH / c / c; 
+Gpc_M_units = 1.0e9 * pc / length_conversion_factor;
+strain_to_SI = q / obs_distance / Gpc_M_units;
+
 # we don't recommend changing the parameters below this line until further testing has been done
 ############################################# DO NOT CHANGE #############################################
 

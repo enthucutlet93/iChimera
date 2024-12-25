@@ -26,7 +26,7 @@ const εkl::Array{Vector} = [[levicivita(spatial_indices_3[k, l, i]) for i = 1:3
 @inline outer(x::Vector{Float64}, y::Vector{Float64}) = [x[i] * y[j] for i in eachindex(x), j in eachindex(y)]
 
 # returns plus and cross polarized waveforms in the wave frame (not detector frame) taking as argument the conventional sky location angles ThetaS, PhiS, ThetaS, ThetaK
-function compute_wave_polarizations(nPoints::Int, r::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray)
+function compute_wave_polarizations(nPoints::Int, r::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, mass_ratio::Float64)
     hij = [zeros(nPoints) for i=1:3, j=1:3];
     hij_TT = [zeros(nPoints) for i=1:3, j=1:3];
     hplus = zeros(nPoints);
@@ -100,11 +100,12 @@ function compute_wave_polarizations(nPoints::Int, r::Float64, ThetaSource::Float
         hcross[:] += 0.5 * Hcross[i, j] * hij_TT[i, j]
     end
 
-    return hplus, hcross
+    # normalize by mass ratio
+    return hplus / mass_ratio, hcross / mass_ratio
 end
 
 # returns plus and cross polarized waveforms in the wave frame (not detector frame) taking as argument the observation angles Θ, Φ
-@views function compute_wave_polarizations(nPoints::Int, r::Float64, Θ::Float64, Φ::Float64, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray)
+@views function compute_wave_polarizations(nPoints::Int, r::Float64, Θ::Float64, Φ::Float64, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, mass_ratio::Float64)
     hij = [zeros(nPoints) for i=1:3, j=1:3];
     hij_TT = [zeros(nPoints) for i=1:3, j=1:3];
     hplus = zeros(nPoints);
@@ -168,7 +169,8 @@ end
         hcross[:] += 0.5 * Hcross[i, j] * hij_TT[i, j]
     end
 
-    return hplus, hcross
+    # normalize by mass ratio
+    return hplus / mass_ratio, hcross / mass_ratio
 end
 
 

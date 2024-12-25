@@ -469,8 +469,7 @@ function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource
 
     # compute h_{ij} tensor
     num_points = length(Mij2[1, 1]);
-    hij = [zeros(num_points) for i=1:3, j=1:3];
-    h_plus, h_cross = Waveform.compute_wave_polarizations!(hij, num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3)
+    h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q)
 
     return h_plus, h_cross
 end
