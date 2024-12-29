@@ -203,7 +203,7 @@ function rotate_to_SSB_frame(h_plus::Vector{Float64}, h_cross::Vector{Float64}, 
         psi = π / 2
     else
         tan_psi_numerator = cos(ThetaSource) * sin(ThetaK) * cos(PhiSource - PhiK) - sin(ThetaSource) * cos(ThetaK)
-        psi = -atan2(tan_psi_numerator, tan_psi_denominator)
+        psi = -atan(tan_psi_numerator, tan_psi_denominator)
     end
 
     h_plus_SSB = h_plus * cos(2psi) - h_cross * sin(2psi)

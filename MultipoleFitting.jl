@@ -84,7 +84,7 @@ const mass_quad_moments = SVector{length(two_index_components)}(["MassQuad", ind
 const mass_oct_moments = SVector{length(three_index_components)}(["MassOct", indices] for indices in three_index_components)
 const mass_hex_moments = SVector{length(four_index_components)}(["MassHex", indices] for indices in four_index_components)
 const current_quad_moments = SVector{length(two_index_components)}(["CurrentQuad", indices] for indices in two_index_components)
-const current_oct_moments = SVector{length(three_index_components)}(["MassOct", indices] for indices in three_index_components)
+const current_oct_moments = SVector{length(three_index_components)}(["CurrentOct", indices] for indices in three_index_components)
 
 # waveform moments and trajectory (flux) moments. This construction is so that we can use threads to parallelize the computation of the derivatives.
 const moments_wf = SVector(vcat(mass_oct_moments, mass_hex_moments, current_quad_moments, current_oct_moments)...)
@@ -319,7 +319,7 @@ function fit_moments_tr_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, λ
                 d6f_dλ = FourierFitGSL.curve_fit_functional_derivs(λ, Ω_fit, fit_params, n_freqs, nPoints, 6)[compute_at]
             elseif julia_fit
                 Ω_fit = FourierFitJuliaBase.Fit_master!(λ,  Mijk2data[i1, i2, i3], nPoints, nHarm, γ, fit_params)
-                df_dλ = FourierFitGSL.curve_fit_functional_derivs(λ, Ω_fit, fit_params, n_freqs, nPoints, 1)[compute_at]
+                df_dλ = FourierFitJuliaBase.curve_fit_functional_derivs(fit_params, Ω_fit, λ, 1)[compute_at]
                 d2f_dλ = FourierFitJuliaBase.curve_fit_functional_derivs(fit_params, Ω_fit, λ, 2)[compute_at]
                 d3f_dλ = FourierFitJuliaBase.curve_fit_functional_derivs(fit_params, Ω_fit, λ, 3)[compute_at]
                 d4f_dλ = FourierFitJuliaBase.curve_fit_functional_derivs(fit_params, Ω_fit, λ, 4)[compute_at]
@@ -415,7 +415,7 @@ function fit_moments_wf_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, λ
                 df_dλ = FourierFitGSL.curve_fit_functional_derivs(λ, Ω_fit, fit_params, n_freqs, nPoints, 1)
             elseif julia_fit
                 Ω_fit = FourierFitJuliaBase.Fit_master!(λ,  Mijk2data[i1, i2, i3], nPoints, nHarm, γ, fit_params)
-                df_dλ = FourierFitGSL.curve_fit_functional_derivs(λ, Ω_fit, fit_params, n_freqs, nPoints, 1)
+                df_dλ = FourierFitJuliaBase.curve_fit_functional_derivs(fit_params, Ω_fit, λ, 1)
             end
 
             @views Mijk3[i1, i2, i3] = @. ParameterizedDerivs.df_dt(df_dλ, dλ_dt)
