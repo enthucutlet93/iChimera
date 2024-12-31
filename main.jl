@@ -31,4 +31,5 @@ include("EstimateMultipoleDerivs.jl");
 include("SelfAcceleration.jl");
 include("Waveform.jl");
 include("EvolveConstants.jl");
+include("HDF5Helper.jl");
 include("ChimeraInspiral.jl");

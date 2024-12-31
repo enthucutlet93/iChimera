@@ -53,25 +53,18 @@ the flux at some point on a given piecewise geodesic versus another.
 """
 
 # updates the orbital constants using the self-force in Boyer-Lindquist coordinates
-function Evolve_BL(Δt::Float64, a::Float64, r::Float64, θ::Float64, ϕ::Float64, Γ::Float64, rdot::Float64, θdot::Float64, ϕdot::Float64, aSF_BL::AbstractVector{Float64}, 
-    EE::AbstractVector{Float64}, Edot::AbstractVector{Float64}, LL::AbstractVector{Float64}, Ldot::AbstractVector{Float64}, QQ::AbstractVector{Float64}, Qdot::AbstractVector{Float64}, CC::AbstractVector{Float64}, Cdot::AbstractVector{Float64},
-    pArray::AbstractVector{Float64}, ecc::AbstractVector{Float64}, θminArray::AbstractVector{Float64})
-    # first load orbital constants of previous geodesic (recall that we compute updated constants to move to the next geodesic in the inspiral)
-    E0 = last(EE); L0 = last(LL); Q0 = last(QQ); C0 = last(CC); p0 = last(pArray); e0 = last(ecc); θmin_0 = last(θminArray);
+function Evolve_BL(Δt::Float64, a::Float64, r::Float64, θ::Float64, ϕ::Float64, Γ::Float64, rdot::Float64, θdot::Float64, ϕdot::Float64, aSF_BL::AbstractVector{Float64}, E0::Float64, L0::Float64, Q0::Float64, C0::Float64, p0::Float64, e0::Float64, θmin_0::Float64)
     
     #### update E, L, Q, C ####
     # update E
     dE_dt = (- Kerr.KerrMetric.g_μν(r, θ, ϕ, a, 1, 1) * aSF_BL[1] - Kerr.KerrMetric.g_μν(r, θ, ϕ, a, 4, 1) * aSF_BL[4])/Γ    # Eq. 30
-    push!(Edot, dE_dt)
 
     # update L
     if e0==0.0 && θmin_0==π/2   # circular equatorial
         ang_velocity = 1/(a + p * sqrt(p))
         dL_dt = dE_dt / ang_velocity    # page 10 first paragraph on right column
-        push!(Ldot, dE_dt / ang_velocity)
     else
         dL_dt = (Kerr.KerrMetric.g_μν(r, θ, ϕ, a, 1, 4) * aSF_BL[1] + Kerr.KerrMetric.g_μν(r, θ, ϕ, a, 4, 4) * aSF_BL[4])/Γ    # Eq. 31
-        push!(Ldot, dL_dt)
     end
     
     # update C, Q
@@ -90,19 +83,11 @@ function Evolve_BL(Δt::Float64, a::Float64, r::Float64, θ::Float64, ϕ::Float6
         dC_dt = dQ_dt + 2 * (a * E0 - L0) * (dL_dt - a * dE_dt)
     end
 
-    push!(Qdot, dQ_dt)
-    push!(Cdot, dC_dt)
-
     # compute updated E, L, Q, C and store
     E1 = E0 + dE_dt * Δt
     L1 = L0 + dL_dt * Δt
     Q1 = Q0 + dQ_dt * Δt
     C1 = C0 + dC_dt * Δt
-
-    push!(EE, E1)
-    push!(LL, L1)
-    push!(QQ, Q1)
-    push!(CC, C1)
 
     ### update p, e, θmin ####
 
@@ -128,10 +113,8 @@ function Evolve_BL(Δt::Float64, a::Float64, r::Float64, θ::Float64, ϕ::Float6
             θθ = π/2
         end
     end
-
-    push!(pArray, pp)
-    push!(ecc, ee)
-    push!(θminArray, θθ)
+    
+    return E1, dE_dt, L1, dL_dt, Q1, dQ_dt, C1, dC_dt, pp, ee, θθ
 end
 
 # functions to update the orbital constants using the self-force in harmonic coordinates---the result is the same as doing it in BL coords
