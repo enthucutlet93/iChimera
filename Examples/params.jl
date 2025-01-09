@@ -78,13 +78,13 @@ nHarmGSL = 2;                                           # number of harmonics in
 
 julia_fit = "Julia"
 nPointsFitJulia = 101;                                  # number of points in the julia fit (must be odd)
-nHarmJulia = 3;                                         # number of harmonics in the fourier series expansion
+nHarmJulia = 2;                                         # number of harmonics in the fourier series expansion
 
 ### Boyer-Lindquist fourier fit params ###
 t_range_factor_BL = 0.5;                                # determines the "length", Δt, of the time series data used to perform the fits in BL time: Δt = t_range_factor_BL * (2π / min(Ω)), where Ω are the fundamental frequencies
 
 ### Mino time fourier fit params ###
-t_range_factor_Mino_FF = 0.05;                          # determines the "length", Δλ, of the time series data used to perform the fits in Mino time: Δλ = t_range_factor_Mino_FF * (2π / min(ω)), where ω are the fundamental frequencies
+t_range_factor_Mino_FF = 0.5;                          # determines the "length", Δλ, of the time series data used to perform the fits in Mino time: Δλ = t_range_factor_Mino_FF * (2π / min(ω)), where ω are the fundamental frequencies
 
 ### Mino time finite differences params ###
 h=0.001;

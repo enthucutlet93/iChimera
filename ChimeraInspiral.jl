@@ -65,12 +65,11 @@ Z_2(a::Float64) = sqrt(3 * a^2 + Z_1(a)^2)
 LSO_r(a::Float64) = (3 + Z_2(a) - sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a))))   # retrograde LSO
 LSO_p(a::Float64) = (3 + Z_2(a) + sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a))))   # prograde LSO
 
-function initialize_solution_file!(file::HDF5.File, nPointsGeodesic::Int64; Mino::Bool=false)
+function initialize_solution_file!(file::HDF5.File, chunk_size::Int64; Mino::Bool=false)
     ## ΤRAJECTORY ##
     traj_group_name = "Trajectory"
     create_file_group!(file, traj_group_name);
     
-    chunk_size = nPointsGeodesic;
     if Mino
         create_dataset!(file, traj_group_name, "lambda", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "dt_dlambda", Float64, chunk_size);
@@ -140,63 +139,60 @@ function initialize_solution_file!(file::HDF5.File, nPointsGeodesic::Int64; Mino
     return file
 end
 
-function save_traj!(file::HDF5.File, nPointsGeodesic::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64})
-    chunk_size = nPointsGeodesic;
+@views function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64})
 
     traj_group_name = "Trajectory"
-    append_data!(file, traj_group_name, "t", t, chunk_size);
-    append_data!(file, traj_group_name, "r", r, chunk_size);
-    append_data!(file, traj_group_name, "theta", θ, chunk_size);
-    append_data!(file, traj_group_name, "phi", ϕ, chunk_size);
-    append_data!(file, traj_group_name, "r_dot", dr_dt, chunk_size);
-    append_data!(file, traj_group_name, "theta_dot", dθ_dt, chunk_size);
-    append_data!(file, traj_group_name, "phi_dot", dϕ_dt, chunk_size);
-    append_data!(file, traj_group_name, "r_ddot", d2r_dt2, chunk_size);
-    append_data!(file, traj_group_name, "theta_ddot", d2θ_dt2, chunk_size);
-    append_data!(file, traj_group_name, "phi_ddot", d2ϕ_dt2, chunk_size);
-    append_data!(file, traj_group_name, "Gamma", dt_dτ, chunk_size);
+    append_data!(file, traj_group_name, "t", t[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "r", r[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "theta", θ[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "phi", ϕ[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "r_dot", dr_dt[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "theta_dot", dθ_dt[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "phi_dot", dϕ_dt[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "r_ddot", d2r_dt2[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "theta_ddot", d2θ_dt2[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "phi_ddot", d2ϕ_dt2[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "Gamma", dt_dτ[1:chunk_size], chunk_size);
 end
 
-function save_λ_traj!(file::HDF5.File, nPointsGeodesic::Int64, λ::Vector{Float64}, dt_dλ::Vector{Float64})
-    chunk_size = nPointsGeodesic;
+@views function save_λ_traj!(file::HDF5.File, chunk_size::Int64, λ::Vector{Float64}, dt_dλ::Vector{Float64})
 
     traj_group_name = "Trajectory"
-    append_data!(file, traj_group_name, "lambda", λ, chunk_size);
-    append_data!(file, traj_group_name, "dt_dlambda", dt_dλ, chunk_size);
+    append_data!(file, traj_group_name, "lambda", λ[1:chunk_size], chunk_size);
+    append_data!(file, traj_group_name, "dt_dlambda", dt_dλ[1:chunk_size], chunk_size);
 end
 
-function save_moments!(file::HDF5.File, nPointsGeodesic::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray)
-    chunk_size = nPointsGeodesic;
+@views function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray)
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
     wave_group_name = "WaveformMoments"
     # mass and current quadrupole second time derivs
-    append_data!(file, wave_group_name, "Mij11_2", Mij2[1,1], chunk_size); append_data!(file, wave_group_name, "Mij12_2", Mij2[1,2], chunk_size);  append_data!(file, wave_group_name, "Mij13_2", Mij2[1,3], chunk_size);
-    append_data!(file, wave_group_name, "Mij22_2", Mij2[2,2], chunk_size); append_data!(file, wave_group_name, "Mij23_2", Mij2[2,3], chunk_size);  append_data!(file, wave_group_name, "Mij33_2", Mij2[3,3], chunk_size);
+    append_data!(file, wave_group_name, "Mij11_2", Mij2[1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mij12_2", Mij2[1,2][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Mij13_2", Mij2[1,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mij22_2", Mij2[2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mij23_2", Mij2[2,3][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Mij33_2", Mij2[3,3][1:chunk_size], chunk_size);
 
-    append_data!(file, wave_group_name, "Sij11_2", Sij2[1,1], chunk_size); append_data!(file, wave_group_name, "Sij12_2", Sij2[1,2], chunk_size);  append_data!(file, wave_group_name, "Sij13_2", Sij2[1,3], chunk_size);
-    append_data!(file, wave_group_name, "Sij22_2", Sij2[2,2], chunk_size); append_data!(file, wave_group_name, "Sij23_2", Sij2[2,3], chunk_size);  append_data!(file, wave_group_name, "Sij33_2", Sij2[3,3], chunk_size);
+    append_data!(file, wave_group_name, "Sij11_2", Sij2[1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sij12_2", Sij2[1,2][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Sij13_2", Sij2[1,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Sij22_2", Sij2[2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sij23_2", Sij2[2,3][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Sij33_2", Sij2[3,3][1:chunk_size], chunk_size);
 
     # mass and current octupole third time derivs
-    append_data!(file, wave_group_name, "Mijk111_3", Mijk3[1,1,1], chunk_size); append_data!(file, wave_group_name, "Mijk112_3", Mijk3[1,1,2], chunk_size); append_data!(file, wave_group_name, "Mijk122_3", Mijk3[1,2,2], chunk_size); 
-    append_data!(file, wave_group_name, "Mijk113_3", Mijk3[1,1,3], chunk_size); append_data!(file, wave_group_name, "Mijk133_3", Mijk3[1,3,3], chunk_size); append_data!(file, wave_group_name, "Mijk123_3", Mijk3[1,2,3], chunk_size); 
-    append_data!(file, wave_group_name, "Mijk222_3", Mijk3[2,2,2], chunk_size); append_data!(file, wave_group_name, "Mijk223_3", Mijk3[2,2,3], chunk_size); append_data!(file, wave_group_name, "Mijk233_3", Mijk3[2,3,3], chunk_size); 
-    append_data!(file, wave_group_name, "Mijk333_3", Mijk3[3,3,3], chunk_size);
+    append_data!(file, wave_group_name, "Mijk111_3", Mijk3[1,1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk112_3", Mijk3[1,1,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk122_3", Mijk3[1,2,2][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Mijk113_3", Mijk3[1,1,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk133_3", Mijk3[1,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk123_3", Mijk3[1,2,3][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Mijk222_3", Mijk3[2,2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk223_3", Mijk3[2,2,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijk233_3", Mijk3[2,3,3][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Mijk333_3", Mijk3[3,3,3][1:chunk_size], chunk_size);
 
-    append_data!(file, wave_group_name, "Sijk111_3", Sijk3[1,1,1], chunk_size); append_data!(file, wave_group_name, "Sijk112_3", Sijk3[1,1,2], chunk_size); append_data!(file, wave_group_name, "Sijk122_3", Sijk3[1,2,2], chunk_size); 
-    append_data!(file, wave_group_name, "Sijk113_3", Sijk3[1,1,3], chunk_size); append_data!(file, wave_group_name, "Sijk133_3", Sijk3[1,3,3], chunk_size); append_data!(file, wave_group_name, "Sijk123_3", Sijk3[1,2,3], chunk_size); 
-    append_data!(file, wave_group_name, "Sijk222_3", Sijk3[2,2,2], chunk_size); append_data!(file, wave_group_name, "Sijk223_3", Sijk3[2,2,3], chunk_size); append_data!(file, wave_group_name, "Sijk233_3", Sijk3[2,3,3], chunk_size); 
-    append_data!(file, wave_group_name, "Sijk333_3", Sijk3[3,3,3], chunk_size);
+    append_data!(file, wave_group_name, "Sijk111_3", Sijk3[1,1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk112_3", Sijk3[1,1,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk122_3", Sijk3[1,2,2][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Sijk113_3", Sijk3[1,1,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk133_3", Sijk3[1,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk123_3", Sijk3[1,2,3][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Sijk222_3", Sijk3[2,2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk223_3", Sijk3[2,2,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Sijk233_3", Sijk3[2,3,3][1:chunk_size], chunk_size); 
+    append_data!(file, wave_group_name, "Sijk333_3", Sijk3[3,3,3][1:chunk_size], chunk_size);
 
     # mass hexadecapole fourth time deriv
-    append_data!(file, wave_group_name, "Mijkl1111_4", Mijkl4[1,1,1,1], chunk_size); append_data!(file, wave_group_name, "Mijkl1112_4", Mijkl4[1,1,1,2], chunk_size); append_data!(file, wave_group_name, "Mijkl1122_4", Mijkl4[1,1,2,2], chunk_size);
-    append_data!(file, wave_group_name, "Mijkl1222_4", Mijkl4[1,2,2,2], chunk_size); append_data!(file, wave_group_name, "Mijkl1113_4", Mijkl4[1,1,1,3], chunk_size); append_data!(file, wave_group_name, "Mijkl1133_4", Mijkl4[1,1,3,3], chunk_size);
-    append_data!(file, wave_group_name, "Mijkl1333_4", Mijkl4[1,3,3,3], chunk_size); append_data!(file, wave_group_name, "Mijkl1123_4", Mijkl4[1,1,2,3], chunk_size); append_data!(file, wave_group_name, "Mijkl1223_4", Mijkl4[1,2,2,3], chunk_size);
-    append_data!(file, wave_group_name, "Mijkl1233_4", Mijkl4[1,2,3,3], chunk_size); append_data!(file, wave_group_name, "Mijkl2222_4", Mijkl4[2,2,2,2], chunk_size); append_data!(file, wave_group_name, "Mijkl2223_4", Mijkl4[2,2,2,3], chunk_size);
-    append_data!(file, wave_group_name, "Mijkl2233_4", Mijkl4[2,2,3,3], chunk_size); append_data!(file, wave_group_name, "Mijkl2333_4", Mijkl4[2,3,3,3], chunk_size); append_data!(file, wave_group_name, "Mijkl3333_4", Mijkl4[3,3,3,3], chunk_size);
+    append_data!(file, wave_group_name, "Mijkl1111_4", Mijkl4[1,1,1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1112_4", Mijkl4[1,1,1,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1122_4", Mijkl4[1,1,2,2][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mijkl1222_4", Mijkl4[1,2,2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1113_4", Mijkl4[1,1,1,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1133_4", Mijkl4[1,1,3,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mijkl1333_4", Mijkl4[1,3,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1123_4", Mijkl4[1,1,2,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1223_4", Mijkl4[1,2,2,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mijkl1233_4", Mijkl4[1,2,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2222_4", Mijkl4[2,2,2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2223_4", Mijkl4[2,2,2,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mijkl2233_4", Mijkl4[2,2,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2333_4", Mijkl4[2,3,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl3333_4", Mijkl4[3,3,3,3][1:chunk_size], chunk_size);
 end
 
-function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64)
+@views function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64)
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "t_Fluxes", t);
     append_data!(file, traj_group_name, "Energy", E);
@@ -212,7 +208,7 @@ function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64
     append_data!(file, traj_group_name, "Cdot", dC_dt);
 end
 
-function save_self_acceleration!(file::HDF5.File, acc_BL::Vector{Float64}, acc_Harm::Vector{Float64})
+@views function save_self_acceleration!(file::HDF5.File, acc_BL::Vector{Float64}, acc_Harm::Vector{Float64})
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "self_acc_BL_t", acc_BL[1]);
     append_data!(file, traj_group_name, "self_acc_BL_r", acc_BL[2]);
@@ -412,7 +408,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
     file = h5open(sol_filename, "w")
 
-    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic; Mino=false)
+    # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
+    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic-1; Mino=false)
 
     # create arrays to store multipole moments necessary for waveform computation
     Mij2_wf = [Float64[] for i=1:3, j=1:3];
@@ -496,10 +493,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     use_custom_ics = true; use_specified_params = true;
     save_at_trajectory = compute_SF / (nPointsGeodesic - 1); Δti=save_at_trajectory;    # initial time step for geodesic integration
 
-    # in the code, we will want to compute the geodesic with an additional time step at the end so that these coordinate values can be used as initial conditions for the
-    # subsequent geodesic
-    geodesic_time_length = compute_SF + save_at_trajectory;
-    num_points_geodesic = nPointsGeodesic + 1;
+    geodesic_time_length = compute_SF;
+    num_points_geodesic = nPointsGeodesic;
 
     while tInspiral > t0
         print("Completion: $(round(100 * t0/tInspiral; digits=5))%   \r")
@@ -530,13 +525,11 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
             break
         end
 
-        # extract initial conditions for next geodesic, then remove these points from the data array
+        # extract initial conditions for next geodesic.
         t0 = last(tt); geodesic_ics = @SArray [last(psi), last(chi), last(ϕϕ)];
-        pop!(tt); pop!(rr); pop!(θθ); pop!(ϕϕ); pop!(r_dot); pop!(θ_dot); pop!(ϕ_dot);
-        pop!(r_ddot); pop!(θ_ddot); pop!(ϕ_ddot); pop!(Γ); pop!(psi); pop!(chi);
-
-        # store physical trajectory
-        ChimeraInspiral.save_traj!(file, nPointsGeodesic, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ)
+        
+        # store physical trajectory — this function omits last point since this overlaps with the start of the next geodesic
+        ChimeraInspiral.save_traj!(file, nPointsGeodesic-1, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ)
 
         ###### COMPUTE MULTIPOLE MOMENTS FOR WAVEFORMS ######
         chisq=[0.0];
@@ -545,13 +538,13 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         Ω=ω[1:3]/ω[4]; 
         Ωr, Ωθ, Ωϕ = Ω;   # BL time frequencies
 
-        # # compute waveform
+        # compute waveform multipole moments
         EstimateMultipoleDerivs.FourierFit.compute_waveform_moments_and_derivs!(a, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, 
             tt, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp,
             Sij2_wf_temp, Sijk3_wf_temp, nHarm, Ωr, Ωθ, Ωϕ, nPointsGeodesic, n_freqs, chisq, fit)
 
         # store multipole data for waveforms — note that we only save the independent components
-        ChimeraInspiral.save_moments!(file, nPointsGeodesic, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
+        ChimeraInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
 
         ###### COMPUTE SELF-FORCE ######
         # we want to perform each fit over a set of points which span a physical time range T_fit. In some cases, the frequencies are infinite and we 
@@ -605,6 +598,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
+        flush(file)
     end
     print("Completion: 100%   \r")
 
@@ -736,7 +730,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     end
 
     if use_FDM
-        nPointsGeodesic = floor(Int, compute_SF / h)
+        nPointsGeodesic = floor(Int, compute_SF / h) + 1
         save_at_trajectory = h; Δλi=h/10;    # initial time step for geodesic integration
     else
         save_at_trajectory = compute_SF / (nPointsGeodesic - 1); Δλi=save_at_trajectory/10;    # initial time step for geodesic integration
@@ -751,7 +745,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     
     file = h5open(sol_filename, "w")
 
-    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic; Mino=true)
+    # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
+    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic-1; Mino=true)
 
     # initialize data arrays
     xBL_fit = [zeros(3) for i in 1:nPointsFit]; xBL_wf = [zeros(3) for i in 1:nPointsGeodesic];
@@ -826,10 +821,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
     use_custom_ics = true; use_specified_params = true;
 
-    # in the code, we will want to compute the geodesic with an additional time step at the end so that these coordinate values can be used as initial conditions for the
-    # subsequent geodesic
-    geodesic_time_length = compute_SF + save_at_trajectory;
-    num_points_geodesic = nPointsGeodesic + 1;
+    geodesic_time_length = compute_SF;
+    num_points_geodesic = nPointsGeodesic;
 
     while tInspiral > t0
         print("Completion: $(round(100 * t0/tInspiral; digits=5))%   \r")
@@ -852,7 +845,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         λλ = λλ .+ λ0   # λλ from the above function call starts from zero 
 
         # check that geodesic output is as expected
-        if (length(λλ) != num_points_geodesic) || !isapprox(λλ[nPointsGeodesic], λ0 + compute_SF, rtol=1e-3)
+        if (length(λλ) != num_points_geodesic) || !isapprox(λλ[nPointsGeodesic], λ0 + compute_SF, rtol=1e-2)
             println("Integration terminated at t = $(first(tt))")
             println("total_num_points - len(sol) = $(num_points_geodesic-length(λλ))")
             println("λλ[nPointsGeodesic] = $(λλ[nPointsGeodesic])")
@@ -860,15 +853,12 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
             break
         end
 
-        # extract initial conditions for next geodesic, then remove these points from the data array
+        # extract initial conditions for next geodesic.
         λ0 = last(λλ); t0 = last(tt); geodesic_ics = @SArray [t0, last(psi), last(chi), last(ϕϕ)];
 
-        pop!(λλ); pop!(tt); pop!(rr); pop!(θθ); pop!(ϕϕ); pop!(r_dot); pop!(θ_dot); pop!(ϕ_dot);
-        pop!(r_ddot); pop!(θ_ddot); pop!(ϕ_ddot); pop!(Γ); pop!(psi); pop!(chi); pop!(dt_dλλ)
-
-        # store physical trajectory
-        ChimeraInspiral.save_traj!(file, nPointsGeodesic, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ)
-        ChimeraInspiral.save_λ_traj!(file, nPointsGeodesic, λλ, dt_dλλ)
+        # store physical trajectory — these functions omit last point since this overlaps with the start of the next geodesic
+        ChimeraInspiral.save_traj!(file, nPointsGeodesic-1, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ,)
+        ChimeraInspiral.save_λ_traj!(file, nPointsGeodesic-1, λλ, dt_dλλ)
 
         ###### COMPUTE MULTIPOLE MOMENTS FOR WAVEFORMS ######
         chisq=[0.0];
@@ -887,7 +877,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
 
         # store multipole data for waveforms — note that we only save the independent components
-        ChimeraInspiral.save_moments!(file, nPointsGeodesic, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
+        ChimeraInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
         
         ###### COMPUTE SELF-FORCE ######
         #  we want to perform each fit over a set of points which span a physical time range T_fit. In some cases, the frequencies are infinite, and we thus ignore them in our fitting procedure
@@ -945,6 +935,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
+        flush(file)
     end
     print("Completion: 100%   \r")
     println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path))
@@ -1060,7 +1051,7 @@ Evolve inspiral with Mino time parameterization and estimating the high order mu
 function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, h::Float64, compute_SF::Float64, tInspiral::Float64,
     reltol::Float64=1e-14, abstol::Float64=1e-14; data_path::String="Data/")
 
-    nPointsGeodesic = floor(Int, compute_SF / h)
+    nPointsGeodesic = floor(Int, compute_SF / h) + 1;    # number of points in geodesic
 
     # create solution file
     sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, h, data_path)
@@ -1071,7 +1062,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
     file = h5open(sol_filename, "w")
 
-    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic; Mino=true)
+    # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
+    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic-1; Mino=true)
 
     # length of arrays for trajectory: we fit into the "past" and "future", so the arrays will have an odd size (see later code)
     stencil_array_length = 11;   # set by number of points in FDM stencil
@@ -1145,7 +1137,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
     # in the code, we will want to compute the geodesic with an additional time step at the end so that these coordinate values can be used as initial conditions for the subsequent geodesic
     save_at_trajectory = h; Δλi=h/10;    # initial time step for geodesic integration
-    num_points_geodesic = nPointsGeodesic + 1;
+    num_points_geodesic = nPointsGeodesic;
     geodesic_time_length = h * (num_points_geodesic-1);
 
     while tInspiral > t0
@@ -1177,15 +1169,12 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
             break
         end
 
-        # extract initial conditions for next geodesic, then remove these points from the data array
+        # extract initial conditions for next geodesic.
         λ0 = last(λλ); t0 = last(tt); geodesic_ics = @SArray [t0, last(psi), last(chi), last(ϕϕ)];
 
-        pop!(λλ); pop!(tt); pop!(rr); pop!(θθ); pop!(ϕϕ); pop!(r_dot); pop!(θ_dot); pop!(ϕ_dot);
-        pop!(r_ddot); pop!(θ_ddot); pop!(ϕ_ddot); pop!(Γ); pop!(psi); pop!(chi); pop!(dt_dλλ)
-
-        # store physical trajectory
-        ChimeraInspiral.save_traj!(file, nPointsGeodesic, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ)
-        ChimeraInspiral.save_λ_traj!(file, nPointsGeodesic, λλ, dt_dλλ)
+        # store physical trajectory — these functions omit last point since this overlaps with the start of the next geodesic
+        ChimeraInspiral.save_traj!(file, nPointsGeodesic-1, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ)
+        ChimeraInspiral.save_λ_traj!(file, nPointsGeodesic-1, λλ, dt_dλλ)
 
 
         ###### COMPUTE MULTIPOLE MOMENTS FOR WAVEFORMS ######
@@ -1193,7 +1182,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
             θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, nPointsGeodesic, h)
         
         # store multipole data for waveforms — note that we only save the independent components
-        ChimeraInspiral.save_moments!(file, nPointsGeodesic, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
+        ChimeraInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
 
         ###### COMPUTE SELF-FORCE ######
         # compute past and future geodesic at end point of physical geodesic
@@ -1235,6 +1224,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
+        flush(file)
     end
     print("Completion: 100%   \r")
     println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, h, data_path))

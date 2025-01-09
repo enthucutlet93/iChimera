@@ -11,7 +11,7 @@ function create_dataset!(file::HDF5.File, group_name::String, dataset_name::Stri
 end
 
 # appends 1D data to 1D dataset
-function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::Vector{Float64}, len_data::Int)
+function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::AbstractArray{Float64}, len_data::Int)
     d = file[group_name][dataset_name];
     current_size = length(d);
     HDF5.set_extent_dims(d, (current_size+len_data,));
