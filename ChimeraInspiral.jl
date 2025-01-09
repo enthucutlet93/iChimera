@@ -598,7 +598,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
-        flush(file)
+        # flush(file)
     end
     print("Completion: 100%   \r")
 
@@ -935,7 +935,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
-        flush(file)
+        # flush(file)
     end
     print("Completion: 100%   \r")
     println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path))
@@ -1224,7 +1224,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
-        flush(file)
+        # flush(file)
     end
     print("Completion: 100%   \r")
     println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, h, data_path))
