@@ -139,7 +139,7 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64; Mino::Boo
     return file
 end
 
-@views function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64})
+function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64})
 
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "t", t[1:chunk_size], chunk_size);
@@ -155,14 +155,14 @@ end
     append_data!(file, traj_group_name, "Gamma", dt_dτ[1:chunk_size], chunk_size);
 end
 
-@views function save_λ_traj!(file::HDF5.File, chunk_size::Int64, λ::Vector{Float64}, dt_dλ::Vector{Float64})
+function save_λ_traj!(file::HDF5.File, chunk_size::Int64, λ::Vector{Float64}, dt_dλ::Vector{Float64})
 
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "lambda", λ[1:chunk_size], chunk_size);
     append_data!(file, traj_group_name, "dt_dlambda", dt_dλ[1:chunk_size], chunk_size);
 end
 
-@views function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray)
+function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray)
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
     wave_group_name = "WaveformMoments"
@@ -192,7 +192,7 @@ end
     append_data!(file, wave_group_name, "Mijkl2233_4", Mijkl4[2,2,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2333_4", Mijkl4[2,3,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl3333_4", Mijkl4[3,3,3,3][1:chunk_size], chunk_size);
 end
 
-@views function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64)
+function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64)
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "t_Fluxes", t);
     append_data!(file, traj_group_name, "Energy", E);
@@ -208,7 +208,7 @@ end
     append_data!(file, traj_group_name, "Cdot", dC_dt);
 end
 
-@views function save_self_acceleration!(file::HDF5.File, acc_BL::Vector{Float64}, acc_Harm::Vector{Float64})
+function save_self_acceleration!(file::HDF5.File, acc_BL::Vector{Float64}, acc_Harm::Vector{Float64})
     traj_group_name = "Trajectory"
     append_data!(file, traj_group_name, "self_acc_BL_t", acc_BL[1]);
     append_data!(file, traj_group_name, "self_acc_BL_r", acc_BL[2]);
@@ -496,6 +496,12 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     geodesic_time_length = compute_SF;
     num_points_geodesic = nPointsGeodesic;
 
+    # initialize fluxes to zero (serves as a flag in the function which evolves the constants of motion)
+    dE_dt = 0.0
+    dL_dt = 0.0
+    dQ_dt = 0.0
+    dC_dt = 0.0
+
     while tInspiral > t0
         print("Completion: $(round(100 * t0/tInspiral; digits=5))%   \r")
         flush(stdout) 
@@ -590,9 +596,9 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         # store self force values
         ChimeraInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
 
-        # update orbital constants and fluxes
+        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
         Δt = last(tt) - tt[1]
-        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t)
+        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         # save orbital constants and fluxes
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
@@ -824,6 +830,12 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     geodesic_time_length = compute_SF;
     num_points_geodesic = nPointsGeodesic;
 
+    # initialize fluxes to zero (serves as a flag in the function which evolves the constants of motion)
+    dE_dt = 0.0
+    dL_dt = 0.0
+    dQ_dt = 0.0
+    dC_dt = 0.0
+
     while tInspiral > t0
         print("Completion: $(round(100 * t0/tInspiral; digits=5))%   \r")
         flush(stdout) 
@@ -927,9 +939,9 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         # store self force values
         ChimeraInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
         
-        # update orbital constants and fluxes
+        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
         Δt = last(tt) - tt[1]
-        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t)
+        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         # save orbital constants and fluxes
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
@@ -1138,6 +1150,12 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     # in the code, we will want to compute the geodesic with an additional time step at the end so that these coordinate values can be used as initial conditions for the subsequent geodesic
     save_at_trajectory = h; Δλi=h/10;    # initial time step for geodesic integration
     num_points_geodesic = nPointsGeodesic;
+
+    # initialize fluxes to zero (serves as a flag in the function which evolves the constants of motion)
+    dE_dt = 0.0
+    dL_dt = 0.0
+    dQ_dt = 0.0
+    dC_dt = 0.0
     geodesic_time_length = h * (num_points_geodesic-1);
 
     while tInspiral > t0
@@ -1216,9 +1234,9 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         # store self force values
         ChimeraInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
         
-        # update orbital constants and fluxes
+        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
         Δt = last(tt) - tt[1]
-        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t)
+        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
         # save orbital constants and fluxes
         ChimeraInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
