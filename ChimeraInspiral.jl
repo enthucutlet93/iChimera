@@ -721,6 +721,7 @@ Evolve inspiral with with Mino time parameterization and estimating the high ord
 - `abstol`: absolute tolerance for ODE solver.
 - `h::Float64`: if use_FDM=true, then h is the step size for the ODE solver (and one does not specify nPointsGeodesic).
 - `nPointsGeodesic::Int64`: if use_FDM=false, this sets the number of points in the geodesic.
+- `JIT::Bool`: dummy run to JIT compile function.
 - `data_path::String`: path to save data.
 
 # Notes
@@ -729,7 +730,7 @@ fitting). In constructing waveforms, one needs lower order derivatives of the re
 compared to only up to two for the waveforms). Using this hybrid approach allows one to significantly speed up the inspiral evolution.
 """
 function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nPointsFit::Int64, nHarm::Int64, fit_time_range_factor::Float64,
-    compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/")
+    compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/", JIT::Bool=false)
 
     if iseven(nPointsFit)
         throw(DomainError(nPointsFit, "nPointsFit must be odd"))
@@ -740,6 +741,10 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         save_at_trajectory = h; Δλi=h/10;    # initial time step for geodesic integration
     else
         save_at_trajectory = compute_SF / (nPointsGeodesic - 1); Δλi=save_at_trajectory/10;    # initial time step for geodesic integration
+    end
+
+    if JIT
+        tInspiral = 20.0 # dummy run for Δt = 20M
     end
 
     # create solution file
@@ -950,16 +955,26 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         # flush(file)
     end
     print("Completion: 100%   \r")
-    println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path))
-    close(file)
+
+    if JIT
+        rm(sol_filename)
+        println("JIT compilation run complete.")
+    else
+        println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path))
+        close(file)
+    end
 end
 
 function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
     return data_path * "EMRI_sol_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.h5"
 end
 
-function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.h5"
+function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaS_$(round(ThetaSource; digits=3))_PhiS_$(round(PhiSource; digits=3))_ThetaK_$(round(ThetaKerr; digits=3))_PhiK_$(round(PhiKerr; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit_mass_quad_"*string(mass_quad)*".h5"
+end
+
+function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaObs::Float64, PhiObs::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaObs_$(round(ThetaObs; digits=3))_PhiObs_$(round(PhiObs; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit_mass_quad_"*string(mass_quad)*".h5"
 end
 
 function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
@@ -972,7 +987,7 @@ function load_constants_of_motion(a::Float64, p::Float64, e::Float64, θmin::Flo
     return ChimeraInspiral.load_constants_of_motion(sol_filename)
 end
 
-function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64,a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
     # load waveform multipole moments
     sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
     t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
@@ -980,10 +995,10 @@ function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource
     # compute h_{ij} tensor
     num_points = length(Mij2[1, 1]);
     h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr,
-    PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q)
+    PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q; mass_quad = mass_quad)
 
     # save waveform to file
-    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, nHarm, fit_time_range_factor, fit, data_path)
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     h5open(wave_filename, "w") do file
         file["t"] = t
         file["hplus"] = h_plus
@@ -992,9 +1007,39 @@ function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource
     println("File created: " * wave_filename)
 end
 
-function load_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64,a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
+function compute_waveform(obs_distance::Float64, ThetaObs::Float64, PhiObs::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    # load waveform multipole moments
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+    t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
+
+    # compute h_{ij} tensor
+    num_points = length(Mij2[1, 1]);
+    h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaObs, PhiObs, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q; mass_quad = mass_quad)
+
     # save waveform to file
-    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, nHarm, fit_time_range_factor, fit, data_path)
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaObs, PhiObs, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
+    h5open(wave_filename, "w") do file
+        file["t"] = t
+        file["hplus"] = h_plus
+        file["hcross"] = h_cross
+    end
+    println("File created: " * wave_filename)
+end
+
+function load_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64,a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
+    file = h5open(wave_filename, "r")
+    t = file["t"][:]
+    h_plus = file["hplus"][:]
+    h_cross = file["hcross"][:]
+    close(file)
+    return t, h_plus, h_cross    
+end
+
+function load_waveform(obs_distance::Float64, ThetaObs::Float64, PhiObs::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    # save waveform to file
+    wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaObs, PhiObs, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     file = h5open(wave_filename, "r")
     t = file["t"][:]
     h_plus = file["hplus"][:]
