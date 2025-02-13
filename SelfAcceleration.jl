@@ -348,6 +348,38 @@ using ...MultipoleFitting
 end
 
 # mutates the self-acceleration 4-vector
+@views function selfAcc_Mino_quad!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
+    aH::AbstractArray, v::AbstractArray, λ::AbstractVector{Float64}, r::AbstractVector{Float64}, rdot::AbstractVector{Float64}, rddot::AbstractVector{Float64}, θ::AbstractVector{Float64}, θdot::AbstractVector{Float64},
+    θddot::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, ϕdot::AbstractVector{Float64}, ϕddot::AbstractVector{Float64}, Mij5::AbstractArray, Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray,
+    Mijk8::AbstractArray, Sij5::AbstractArray, Sij6::AbstractArray, Mij2_data::AbstractArray, a::Float64, q::Float64, E::Float64, L::Float64, C::Float64, compute_at::Int64, nHarm::Int64,
+    ωr::Float64, ωθ::Float64, ωϕ::Float64, nPoints::Int64, n_freqs::Int64, chisq::AbstractVector{Float64}, fit::String)
+    
+    # convert trajectories to BL coords
+    @inbounds for i in eachindex(λ)
+        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
+        vBL[i] = Vector{Float64}([rdot[i], θdot[i], ϕdot[i]]);
+        aBL[i] = Vector{Float64}([rddot[i], θddot[i], ϕddot[i]]);
+  
+        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
+        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
+        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
+
+        rH[i] = SelfAcceleration.norm_3d(xH[i]);
+        v[i] = SelfAcceleration.norm_3d(vH[i]);
+    end
+    
+    # calculate first and second derivative of multipole moments from analytic expressions
+    EstimateMultipoleDerivs.analytic_moment_derivs_tr_quad!(aH, vH, xH, q, Mij2_data)
+
+    # estimate higher order derivatives of the multipole moments via fourier fits
+    MultipoleFitting.fit_moments_tr_Mino_quad!(a, E, L, C, λ, xBL[compute_at], sign(rdot[compute_at]), sign(θdot[compute_at]), Mij2_data, Mij5, Mij6, Mij7, Mij8,
+    compute_at, nHarm, ωr, ωθ, ωϕ, nPoints, n_freqs, chisq, fit)
+    
+    # calculate self force in BL and harmonic coordinates
+    SelfAcceleration.aRRα(aSF_H, aSF_BL, xH[compute_at], v[compute_at], vH[compute_at], xBL[compute_at], rH[compute_at], a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
+end
+
+# mutates the self-acceleration 4-vector
 @views function selfAcc!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
     aH::AbstractArray, v::AbstractArray, t::AbstractVector{Float64}, r::AbstractVector{Float64}, rdot::AbstractVector{Float64}, rddot::AbstractVector{Float64}, θ::AbstractVector{Float64}, θdot::AbstractVector{Float64},
     θddot::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, ϕdot::AbstractVector{Float64}, ϕddot::AbstractVector{Float64}, Mij5::AbstractArray, Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray,

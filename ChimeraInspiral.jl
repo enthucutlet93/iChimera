@@ -139,6 +139,60 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64; Mino::Boo
     return file
 end
 
+function initialize_solution_file_quad!(file::HDF5.File, chunk_size::Int64; Mino::Bool=false)
+    ## ΤRAJECTORY ##
+    traj_group_name = "Trajectory"
+    create_file_group!(file, traj_group_name);
+    
+    if Mino
+        create_dataset!(file, traj_group_name, "lambda", Float64, chunk_size);
+        create_dataset!(file, traj_group_name, "dt_dlambda", Float64, chunk_size);
+    end
+
+    create_dataset!(file, traj_group_name, "t", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "r", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "theta", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "phi", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "r_dot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "theta_dot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "phi_dot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "r_ddot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "theta_ddot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "phi_ddot", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "Gamma", Float64, chunk_size);
+    create_dataset!(file, traj_group_name, "t_Fluxes", Float64, 1);
+    create_dataset!(file, traj_group_name, "Energy", Float64, 1);
+    create_dataset!(file, traj_group_name, "AngularMomentum", Float64, 1);
+    create_dataset!(file, traj_group_name, "CarterConstant", Float64, 1);
+    create_dataset!(file, traj_group_name, "AltCarterConstant", Float64, 1);
+    create_dataset!(file, traj_group_name, "p", Float64, 1);
+    create_dataset!(file, traj_group_name, "eccentricity", Float64, 1);
+    create_dataset!(file, traj_group_name, "theta_min", Float64, 1);
+    create_dataset!(file, traj_group_name, "Edot", Float64, 1);
+    create_dataset!(file, traj_group_name, "Ldot", Float64, 1);
+    create_dataset!(file, traj_group_name, "Qdot", Float64, 1);
+    create_dataset!(file, traj_group_name, "Cdot", Float64, 1);
+
+    create_dataset!(file, traj_group_name, "self_acc_BL_t", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_BL_r", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_BL_θ", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_BL_ϕ", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_Harm_t", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_Harm_x", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_Harm_y", Float64, 1);
+    create_dataset!(file, traj_group_name, "self_acc_Harm_z", Float64, 1);
+
+    ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
+    wave_group_name = "WaveformMoments"
+    create_file_group!(file, wave_group_name);
+
+    # mass and current quadrupole second time derivs
+    create_dataset!(file, wave_group_name, "Mij11_2", Float64, chunk_size); create_dataset!(file, wave_group_name, "Mij12_2", Float64, chunk_size);  create_dataset!(file, wave_group_name, "Mij13_2", Float64, chunk_size);
+    create_dataset!(file, wave_group_name, "Mij22_2", Float64, chunk_size); create_dataset!(file, wave_group_name, "Mij23_2", Float64, chunk_size);  create_dataset!(file, wave_group_name, "Mij33_2", Float64, chunk_size);
+
+    return file
+end
+
 function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64})
 
     traj_group_name = "Trajectory"
@@ -190,6 +244,15 @@ function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, 
     append_data!(file, wave_group_name, "Mijkl1333_4", Mijkl4[1,3,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1123_4", Mijkl4[1,1,2,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl1223_4", Mijkl4[1,2,2,3][1:chunk_size], chunk_size);
     append_data!(file, wave_group_name, "Mijkl1233_4", Mijkl4[1,2,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2222_4", Mijkl4[2,2,2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2223_4", Mijkl4[2,2,2,3][1:chunk_size], chunk_size);
     append_data!(file, wave_group_name, "Mijkl2233_4", Mijkl4[2,2,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl2333_4", Mijkl4[2,3,3,3][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mijkl3333_4", Mijkl4[3,3,3,3][1:chunk_size], chunk_size);
+end
+
+function save_moments_quad!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray)
+
+    ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
+    wave_group_name = "WaveformMoments"
+    # mass and current quadrupole second time derivs
+    append_data!(file, wave_group_name, "Mij11_2", Mij2[1,1][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mij12_2", Mij2[1,2][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Mij13_2", Mij2[1,3][1:chunk_size], chunk_size);
+    append_data!(file, wave_group_name, "Mij22_2", Mij2[2,2][1:chunk_size], chunk_size); append_data!(file, wave_group_name, "Mij23_2", Mij2[2,3][1:chunk_size], chunk_size);  append_data!(file, wave_group_name, "Mij33_2", Mij2[3,3][1:chunk_size], chunk_size);
 end
 
 function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64)
@@ -299,6 +362,33 @@ function load_waveform_moments(sol_filename::String)
     
     return t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3
 end
+
+function load_waveform_moments_quad(sol_filename::String)
+    Mij2 = [Float64[] for i=1:3, j=1:3]
+    Sij2 = [Float64[] for i=1:3, j=1:3]
+    Mijk3 = [Float64[] for i=1:3, j=1:3, k=1:3]
+    Sijk3 = [Float64[] for i=1:3, j=1:3, k=1:3]
+    Mijkl4 = [Float64[] for i=1:3, j=1:3, k=1:3, l=1:3]
+   
+    h5f = h5open(sol_filename, "r")
+
+    # mass and current quadrupole second time derivs
+    Mij2[1,1] = h5f["WaveformMoments/Mij11_2"][:];
+    Mij2[1,2] = h5f["WaveformMoments/Mij12_2"][:];
+    Mij2[1,3] = h5f["WaveformMoments/Mij13_2"][:];
+    Mij2[2,2] = h5f["WaveformMoments/Mij22_2"][:];
+    Mij2[2,3] = h5f["WaveformMoments/Mij23_2"][:];
+    Mij2[3,3] = h5f["WaveformMoments/Mij33_2"][:];
+
+    t = h5f["Trajectory/t"][:];
+    close(h5f)
+
+    # symmetrize 
+    SymmetricTensors.SymmetrizeTwoIndexTensor!(Mij2);
+    
+    return t, Mij2
+end
+
 
 function load_trajectory(sol_filename::String; Mino::Bool=false)
     h5f = h5open(sol_filename, "r")
@@ -722,6 +812,7 @@ Evolve inspiral with with Mino time parameterization and estimating the high ord
 - `h::Float64`: if use_FDM=true, then h is the step size for the ODE solver (and one does not specify nPointsGeodesic).
 - `nPointsGeodesic::Int64`: if use_FDM=false, this sets the number of points in the geodesic.
 - `JIT::Bool`: dummy run to JIT compile function.
+- `mass_quad::Bool`: include only mass quadrupole in inspiral evolution / waveform computation.
 - `data_path::String`: path to save data.
 
 # Notes
@@ -729,8 +820,9 @@ Evolve inspiral with with Mino time parameterization and estimating the high ord
 fitting). In constructing waveforms, one needs lower order derivatives of the respective multipole moments, meaning that the waveform can be more accurately constructed from FDM than the self-acceleration can (since this requires taking up to six derivatives
 compared to only up to two for the waveforms). Using this hybrid approach allows one to significantly speed up the inspiral evolution.
 """
+
 function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nPointsFit::Int64, nHarm::Int64, fit_time_range_factor::Float64,
-    compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/", JIT::Bool=false)
+    compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/", JIT::Bool=false, mass_quad::Bool=false)
 
     if iseven(nPointsFit)
         throw(DomainError(nPointsFit, "nPointsFit must be odd"))
@@ -748,7 +840,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     end
 
     # create solution file
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     
     if isfile(sol_filename)
         rm(sol_filename)
@@ -757,7 +849,11 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     file = h5open(sol_filename, "w")
 
     # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
-    ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic-1; Mino=true)
+    if mass_quad
+        ChimeraInspiral.initialize_solution_file_quad!(file, nPointsGeodesic-1; Mino=true)
+    else
+        ChimeraInspiral.initialize_solution_file!(file, nPointsGeodesic-1; Mino=true)
+    end
 
     # initialize data arrays
     xBL_fit = [zeros(3) for i in 1:nPointsFit]; xBL_wf = [zeros(3) for i in 1:nPointsGeodesic];
@@ -883,7 +979,10 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         ω = ConstantsOfMotion.KerrFreqs(a, p_t, e_t, θmin_t, E_t, L_t, Q_t, C_t, rplus, rminus);    # Mino time frequencies
         ωr=ω[1]; ωθ=ω[2]; ωϕ=ω[3];   # mino time frequencies
 
-        if use_FDM
+        if mass_quad # don't need any derivatives for just mass_quadrupole
+            EstimateMultipoleDerivs.compute_waveform_moments_and_derivs_Mino_quad!(a, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, rr, r_dot, r_ddot, θθ,
+                θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, nPointsGeodesic)
+        elseif use_FDM
             EstimateMultipoleDerivs.FiniteDifferences.compute_waveform_moments_and_derivs_Mino!(a, E_t, L_t, C_t, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, tt, rr,
             r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, nPointsGeodesic, h)
         else
@@ -894,8 +993,11 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
 
         # store multipole data for waveforms — note that we only save the independent components
-        ChimeraInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
-        
+        if mass_quad
+            ChimeraInspiral.save_moments_quad!(file, nPointsGeodesic-1, Mij2_data)
+        else
+            ChimeraInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp)
+        end        
         ###### COMPUTE SELF-FORCE ######
         #  we want to perform each fit over a set of points which span a physical time range T_fit. In some cases, the frequencies are infinite, and we thus ignore them in our fitting procedure
         if e_t == 0.0 && θmin_t == π/2   # circular equatorial
@@ -936,10 +1038,18 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         #     Mij2_data, Mijk2_data, Sij1_data, a, E_t, L_t, C_t, q, compute_at, nHarm,
         #     ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit);
 
-        SelfAcceleration.FourierFit.selfAcc_Mino!(aSF_H_temp, aSF_BL_temp, xBL_fit, vBL_fit, aBL_fit, xH_fit, rH_fit, vH_fit, aH_fit, v_fit, λλ_fit,
+        if mass_quad
+            SelfAcceleration.FourierFit.selfAcc_Mino_quad!(aSF_H_temp, aSF_BL_temp, xBL_fit, vBL_fit, aBL_fit, xH_fit, rH_fit, vH_fit, aH_fit, v_fit, λλ_fit,
             rr_fit, r_dot_fit, r_ddot_fit, θθ_fit, θ_dot_fit, θ_ddot_fit, ϕϕ_fit, ϕ_dot_fit, ϕ_ddot_fit, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
-            Mij2_data, Mijk2_data, Sij1_data, a, q, E_t, L_t, C_t,
-            compute_at, nHarm, ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit)
+            Mij2_data, a, q, E_t, L_t, C_t, compute_at, nHarm, ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit)
+        else
+            SelfAcceleration.FourierFit.selfAcc_Mino!(aSF_H_temp, aSF_BL_temp, xBL_fit, vBL_fit, aBL_fit, xH_fit, rH_fit, vH_fit, aH_fit, v_fit, λλ_fit,
+                rr_fit, r_dot_fit, r_ddot_fit, θθ_fit, θ_dot_fit, θ_ddot_fit, ϕϕ_fit, ϕ_dot_fit, ϕ_ddot_fit, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
+                Mij2_data, Mijk2_data, Sij1_data, a, q, E_t, L_t, C_t,
+                compute_at, nHarm, ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit);
+        end
+
+
         
         # store self force values
         ChimeraInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
@@ -960,13 +1070,13 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         rm(sol_filename)
         println("JIT compilation run complete.")
     else
-        println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path))
+        println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad))
         close(file)
     end
 end
 
-function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    return data_path * "EMRI_sol_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit.h5"
+function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    return data_path * "EMRI_sol_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit_mass_quad_$mass_quad.h5"
 end
 
 function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
@@ -977,25 +1087,29 @@ function waveform_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::F
     return data_path * "Waveform_a_$(a)_p_$(p)_e_$(e)_θmin_$(round(θmin; digits=3))_q_$(q)_psi0_$(round(psi_0; digits=3))_chi0_$(round(chi_0; digits=3))_phi0_$(round(phi_0; digits=3))_obsDist_$(round(obs_distance; digits=3))_ThetaObs_$(round(ThetaObs; digits=3))_PhiObs_$(round(PhiObs; digits=3))_nHarm_$(nHarm)_fit_range_factor_$(fit_time_range_factor)_Mino_fourier_"*fit*"_fit_mass_quad_"*string(mass_quad)*".h5"
 end
 
-function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+function load_trajectory(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     return ChimeraInspiral.load_trajectory(sol_filename, Mino=true)
 end
 
-function load_constants_of_motion(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+function load_constants_of_motion(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     return ChimeraInspiral.load_constants_of_motion(sol_filename)
 end
 
 function compute_waveform(obs_distance::Float64, ThetaSource::Float64, PhiSource::Float64, ThetaKerr::Float64, PhiKerr::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
     # load waveform multipole moments
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
-    t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
-
-    # compute h_{ij} tensor
-    num_points = length(Mij2[1, 1]);
-    h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr,
-    PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q; mass_quad = mass_quad)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
+    if mass_quad
+        t, Mij2 = ChimeraInspiral.load_waveform_moments_quad(sol_filename)
+        num_points = length(Mij2[1, 1]);
+        h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, q)
+    else
+        t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
+        num_points = length(Mij2[1, 1]);
+        h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q)
+    end
+    
 
     # save waveform to file
     wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
@@ -1009,12 +1123,15 @@ end
 
 function compute_waveform(obs_distance::Float64, ThetaObs::Float64, PhiObs::Float64, a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
     # load waveform multipole moments
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
-    t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
-
-    # compute h_{ij} tensor
-    num_points = length(Mij2[1, 1]);
-    h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaObs, PhiObs, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q; mass_quad = mass_quad)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
+    if mass_quad
+        t, Mij2 = ChimeraInspiral.load_waveform_moments_quad(sol_filename)
+        h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaSource, PhiSource, ThetaKerr, PhiKerr, Mij2, q)
+    else
+        t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3 = ChimeraInspiral.load_waveform_moments(sol_filename)
+        num_points = length(Mij2[1, 1]);
+        h_plus, h_cross = Waveform.compute_wave_polarizations(num_points, obs_distance, ThetaObs, PhiObs, Mij2, Mijk3, Mijkl4, Sij2, Sijk3, q)
+    end
 
     # save waveform to file
     wave_filename=waveform_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, obs_distance, ThetaObs, PhiObs, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
@@ -1048,8 +1165,8 @@ function load_waveform(obs_distance::Float64, ThetaObs::Float64, PhiObs::Float64
     return t, h_plus, h_cross    
 end
 
-function delete_EMRI_data(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String)
-    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path)
+function delete_EMRI_data(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, data_path::String; mass_quad::Bool=false)
+    sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, data_path; mass_quad=mass_quad)
     rm(sol_filename)
 end
 

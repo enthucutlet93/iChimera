@@ -3,6 +3,9 @@ include("../main.jl");
 # constants
 c = 2.99792458 * 1e8; Grav_Newton = 6.67430 * 1e-11; Msol = (1.988) * 1e30; year = 365 * 24 * 60 * 60;
 
+# keep only up to mass quadrupole?
+mass_quad=false;
+
 # (initial) orbital parameters
 a = 0.98;                                               # spin
 e = 0.6;                                                # eccentricity

@@ -7,6 +7,7 @@
 
 module EstimateMultipoleDerivs
 using ..MultipoleMoments
+using ..HarmonicCoords
 
 """
 # Common Arguments in this module
@@ -73,7 +74,7 @@ end
 # compute first and second derivatives of the mass and current multipole moments for self-force and flux computation from analytic expressions
 function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Sij1::AbstractArray)
     @inbounds for i=1:3
-        for j=1:3
+        @inbounds for j=1:3
             Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
             Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
             @inbounds for k=1:3
@@ -81,6 +82,36 @@ function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::A
             end
         end
     end
+end
+
+function analytic_moment_derivs_tr_quad!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray)
+    @inbounds for i=1:3
+        @inbounds for j=1:3
+            Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
+        end
+    end
+end
+
+@views function compute_waveform_moments_and_derivs_Mino_quad!(a::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, 
+    xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, r::Vector{Float64}, dr_dt::Vector{Float64},
+    d2r_dt2::Vector{Float64}, θ::Vector{Float64}, dθ_dt::Vector{Float64}, d2θ_dt2::Vector{Float64}, ϕ::Vector{Float64},
+    dϕ_dt::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, Mij2_data::AbstractArray, nPoints::Int64)
+
+    @inbounds for i=1:nPoints
+        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
+        vBL[i] = Vector{Float64}([dr_dt[i], dθ_dt[i], dϕ_dt[i]]);
+        aBL[i] = Vector{Float64}([d2r_dt2[i], d2θ_dt2[i], d2ϕ_dt2[i]]);
+
+        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
+        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
+        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
+
+        rH[i] = norm_3d(xH[i]);
+        v[i] = norm_3d(vH[i]);
+    end
+
+    # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
+    analytic_moment_derivs_tr_quad!(aH, vH, xH, q, Mij2_data)
 end
 
 
