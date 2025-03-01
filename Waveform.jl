@@ -167,16 +167,6 @@ end
     ny = sin(ThetaObs) * sin(PhiObs)
     nz = cos(ThetaObs)
     n_to_obs = [nx, ny, nz]
-
-    # compute tensor which projects into TT gauge (see text below Eq. 2 and Eq. 59 in https://arxiv.org/pdf/gr-qc/0202016)
-    P = [δ(i, j) - n_to_obs[i] * n_to_obs[j] for i=1:3, j=1:3];
-    Πijmn = [P[i, m] * P[j, n] - 0.5 * P[i,j] * P[m,n] for i=1:3, j=1:3, m=1:3, n=1:3];
-
-    # compute wave polarization tensor (see Eqs. 22-23 in https://arxiv.org/pdf/1705.04259)
-    p = [1.0, 0.0, 0.0] # x-axis
-    q = [0, cos(ThetaObs), sin(ThetaObs)] # y-axis (after rotating source frame z-axis onto line of sight R)
-    Hplus = [p[i] * p[j] - q[i] * q[j] for i=1:3, j=1:3]
-    Hcross = [p[i] * q[j] + q[i] * p[j] for i=1:3, j=1:3]
     
     # calculate perturbations (Eq. 84)
     @inbounds Threads.@threads for t=1:nPoints
@@ -197,16 +187,8 @@ end
                 end
             end
         end
-    end
-
-
-    @inbounds for i = 1:3, j = 1:3
-        for m=1:3, n=1:3
-            hij_TT[i, j] += Πijmn[i, j, m, n] * hij[m, n]
-        end
-
-        hplus[:] += 0.5 * Hplus[i, j] * hij_TT[i, j]
-        hcross[:] += 0.5 * Hcross[i, j] * hij_TT[i, j]
+        hplus[t] = Waveform.hplus(hij, ThetaObs, PhiObs, t)
+        hcross[t] = Waveform.hcross(hij, ThetaObs, PhiObs, t)
     end
     
     # normalize by mass ratio
@@ -246,16 +228,6 @@ end
         end
         hplus[t] = Waveform.hplus(hij, ThetaObs, PhiObs, t)
         hcross[t] = Waveform.hcross(hij, ThetaObs, PhiObs, t)
-    end
-
-
-    @inbounds for i = 1:3, j = 1:3
-        for m=1:3, n=1:3
-            hij_TT[i, j] += Πijmn[i, j, m, n] * hij[m, n]
-        end
-
-        hplus[:] += 0.5 * Hplus[i, j] * hij_TT[i, j]
-        hcross[:] += 0.5 * Hcross[i, j] * hij_TT[i, j]
     end
     
     # normalize by mass ratio
