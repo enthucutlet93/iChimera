@@ -34,3 +34,6 @@ include("EvolveConstants.jl");
 include("HDF5Helper.jl");
 include("ChimeraInspiral.jl");
 include("AnomalyConversion.jl");
+include("HarmonicCoordDerivs.jl");
+include("AnalyticMultipoleDerivs.jl");
+include("AnalyticInspiral.jl");
