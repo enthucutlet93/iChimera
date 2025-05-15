@@ -19,6 +19,7 @@ dependencies = [
     "BenchmarkTools",
     "Interpolations",
     "IJulia",
+    "CairoMakie",
     ]
     
 Pkg.add(dependencies)

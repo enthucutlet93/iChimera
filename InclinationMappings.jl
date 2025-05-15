@@ -45,7 +45,7 @@ function iota_to_theta_min(a::Float64, p::Float64, e::Float64, ι::Float64)
 end
 
 # Eq. 1.2 of arXiv:2401.09577v2---note that I is in degrees and θmin will be in radians
-function I_to_theta_min(I::Float64, sign_Lz::Int64)::Float64
+function theta_inc_to_theta_min(I::Float64, sign_Lz::Int64)::Float64
     I = deg2rad(I)
     if I < 0. || I > π
         throw(DomainError("I must be in the range [0, 180]"))
@@ -54,7 +54,7 @@ function I_to_theta_min(I::Float64, sign_Lz::Int64)::Float64
 end
 
 # Eq. 1.3 of arXiv:2401.09577v2
-function xI_to_theta_min(xI::Float64, sign_Lz::Int64)::Float64
+function xtheta_inc_to_theta_min(xI::Float64, sign_Lz::Int64)::Float64
     if abs(xI) > 1
         throw(DomainError("abs(xI) must be less than unity"))
     end

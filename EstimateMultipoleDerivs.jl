@@ -54,17 +54,33 @@ using ..HarmonicCoords
 norm2_3d(u::AbstractVector{Float64}) = u[1] * u[1] + u[2] * u[2] + u[3] * u[3]
 norm_3d(u::AbstractVector{Float64}) = sqrt(norm2_3d(u))
 
-# compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
 function analytic_moment_derivs_wf!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Mijkl2::AbstractArray, Sij1::AbstractArray, Sijk1::AbstractArray)
+    len = length(aH)
     @inbounds for i=1:3
-        for j=1:3
-            Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
-            Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
+        @inbounds for j=1:3
+            Mij2[i, j] = zeros(len)
+            Sij1[i, j] = zeros(len)
             @inbounds for k=1:3
-                Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
-                Sijk1[i, j, k] = MultipoleMoments.dotSijk.(aH, vH, xH, q, i, j, k)
+                Mijk2[i, j, k] = zeros(len)
+                Sijk1[i, j, k] = zeros(len)
                 @inbounds for l=1:3
-                    Mijkl2[i, j, k, l] = MultipoleMoments.ddotMijkl.(aH, vH, xH, q, i, j, k, l)
+                    Mijkl2[i, j, k, l] = zeros(len)
+                end
+            end
+        end
+    end
+
+    @inbounds for m in eachindex(aH)
+        @inbounds for i=1:3
+            @inbounds for j=1:3
+                Mij2[i, j][m] = MultipoleMoments.ddotMij(aH[m], vH[m], xH[m], q, i, j)
+                Sij1[i, j][m] = MultipoleMoments.dotSij(aH[m], vH[m], xH[m], q, i, j)
+                @inbounds for k=1:3
+                    Mijk2[i, j, k][m] = MultipoleMoments.ddotMijk(aH[m], vH[m], xH[m], q, i, j, k)
+                    Sijk1[i, j, k][m] = MultipoleMoments.dotSijk(aH[m], vH[m], xH[m], q, i, j, k)
+                    @inbounds for l=1:3
+                        Mijkl2[i, j, k, l][m] = MultipoleMoments.ddotMijkl(aH[m], vH[m], xH[m], q, i, j, k, l)
+                    end
                 end
             end
         end
@@ -73,47 +89,60 @@ end
 
 # compute first and second derivatives of the mass and current multipole moments for self-force and flux computation from analytic expressions
 function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Sij1::AbstractArray)
+    len = length(aH)
     @inbounds for i=1:3
         @inbounds for j=1:3
-            Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
-            Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
+            Mij2[i, j] = zeros(len)
+            Sij1[i, j] = zeros(len)
             @inbounds for k=1:3
-                Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
+                Mijk2[i, j, k] = zeros(len)
+            end
+        end
+    end
+    
+    @inbounds for m in eachindex(aH)
+        @inbounds for i=1:3
+            @inbounds for j=1:3
+                Mij2[i, j][m] = MultipoleMoments.ddotMij(aH[m], vH[m], xH[m], q, i, j)
+                Sij1[i, j][m] = MultipoleMoments.dotSij(aH[m], vH[m], xH[m], q, i, j)
+                @inbounds for k=1:3
+                    Mijk2[i, j, k][m] = MultipoleMoments.ddotMijk(aH[m], vH[m], xH[m], q, i, j, k)
+                end
             end
         end
     end
 end
 
-function analytic_moment_derivs_tr_quad!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray)
-    @inbounds for i=1:3
-        @inbounds for j=1:3
-            Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
-        end
-    end
-end
 
-@views function compute_waveform_moments_and_derivs_Mino_quad!(a::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, 
-    xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, r::Vector{Float64}, dr_dt::Vector{Float64},
-    d2r_dt2::Vector{Float64}, θ::Vector{Float64}, dθ_dt::Vector{Float64}, d2θ_dt2::Vector{Float64}, ϕ::Vector{Float64},
-    dϕ_dt::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, Mij2_data::AbstractArray, nPoints::Int64)
+# # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
+# function analytic_moment_derivs_wf!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Mijkl2::AbstractArray, Sij1::AbstractArray, Sijk1::AbstractArray)
+#     @inbounds for i=1:3
+#         for j=1:3
+#             Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
+#             Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
+#             @inbounds for k=1:3
+#                 Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
+#                 Sijk1[i, j, k] = MultipoleMoments.dotSijk.(aH, vH, xH, q, i, j, k)
+#                 @inbounds for l=1:3
+#                     Mijkl2[i, j, k, l] = MultipoleMoments.ddotMijkl.(aH, vH, xH, q, i, j, k, l)
+#                 end
+#             end
+#         end
+#     end
+# end
 
-    @inbounds for i=1:nPoints
-        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
-        vBL[i] = Vector{Float64}([dr_dt[i], dθ_dt[i], dϕ_dt[i]]);
-        aBL[i] = Vector{Float64}([d2r_dt2[i], d2θ_dt2[i], d2ϕ_dt2[i]]);
-
-        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
-        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
-        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
-
-        rH[i] = norm_3d(xH[i]);
-        v[i] = norm_3d(vH[i]);
-    end
-
-    # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
-    analytic_moment_derivs_tr_quad!(aH, vH, xH, q, Mij2_data)
-end
-
+# # compute first and second derivatives of the mass and current multipole moments for self-force and flux computation from analytic expressions
+# function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Sij1::AbstractArray)
+#     @inbounds for i=1:3
+#         @inbounds for j=1:3
+#             Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
+#             Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
+#             @inbounds for k=1:3
+#                 Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
+#             end
+#         end
+#     end
+# end
 
 module FiniteDifferences
 using ..EstimateMultipoleDerivs
@@ -130,9 +159,8 @@ using ...SymmetricTensors
 using ...FiniteDiffOrder5
 
 # compute time derivatives of the multipole moments using finite differences. The resulting derivatives are wrt Mino time λ, so we convert them to derivatives wrt BL coordinate time t
-function moment_derivs_wf_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, x::AbstractArray, dr_dt::AbstractArray, dθ_dt::AbstractArray, Mijk2data::AbstractArray, Mijkl2data::AbstractArray, Sij1data::AbstractArray, Sijk1data::AbstractArray,
-    Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nPoints::Int64, h::Float64)
-    
+function moment_derivs_wf!(a::Float64, E::Float64, L::Float64, C::Float64, x::AbstractArray, dr_dt::AbstractArray, dθ_dt::AbstractArray, Mijk2data::AbstractArray, Mijkl2data::AbstractArray, Sij1data::AbstractArray, Sijk1data::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nPoints::Int64, h::Float64, lmax_mass::Int64, lmax_current::Int64)
+    # println("Line 103")
     dx = [Float64[] for i in eachindex(x)]
     d2x = [Float64[] for i in eachindex(x)]
     dt_dλ = zeros(nPoints)
@@ -140,6 +168,7 @@ function moment_derivs_wf_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, 
     dλ_dt = zeros(nPoints)
     d2λ_dt = zeros(nPoints)
 
+    # println("Line 112")
     @inbounds for i in eachindex(x)
         # compute derivatives of coordinates wrt to lambda
         dx[i] = [MinoDerivs1.dr_dλ(x[i], a, E, L, C) * sign(dr_dt[i]), MinoDerivs1.dθ_dλ(x[i], a, E, L, C) * sign(dθ_dt[i]), MinoDerivs1.dϕ_dλ(x[i], a, E, L, C)]
@@ -154,27 +183,36 @@ function moment_derivs_wf_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, 
         d2λ_dt[i] = MinoTimeDerivs.d2λ_dt(dt_dλ[i], d2t_dλ[i])
     end
 
+    # println("Line 127")
     @inbounds Threads.@threads for compute_at in 1:nPoints
         @inbounds for indices in SymmetricTensors.waveform_indices
             if length(indices)==2
                 i, j = indices
-                # current quadrupole
-                dSij1_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Sij1data[i, j], h, nPoints)
-                Sij2[i, j][compute_at] = ParameterizedDerivs.df_dt(dSij1_dλ, dλ_dt[compute_at])
+                if lmax_current >= 2
+                    # current quadrupole
+                    dSij1_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Sij1data[i, j], h, nPoints)
+                    Sij2[i, j][compute_at] = ParameterizedDerivs.df_dt(dSij1_dλ, dλ_dt[compute_at])
+                end
             elseif length(indices)==3
                 # mass octupole
                 i, j, k = indices
-                dMijk2_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Mijk2data[i, j, k], h, nPoints)
-                Mijk3[i, j, k][compute_at] = ParameterizedDerivs.df_dt(dMijk2_dλ, dλ_dt[compute_at])
+                if lmax_mass >= 3
+                    dMijk2_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Mijk2data[i, j, k], h, nPoints)
+                    Mijk3[i, j, k][compute_at] = ParameterizedDerivs.df_dt(dMijk2_dλ, dλ_dt[compute_at])
+                end
 
-                dSijk1_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Sijk1data[i, j, k], h, nPoints)
-                dSijk1_d2λ = FiniteDiffOrder5.compute_second_derivative(compute_at,  Sijk1data[i, j, k], h, nPoints)
-                Sijk3[i, j, k][compute_at] = ParameterizedDerivs.d2f_dt(dSijk1_dλ, dλ_dt[compute_at], dSijk1_d2λ, d2λ_dt[compute_at])
+                if lmax_current == 3
+                    dSijk1_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Sijk1data[i, j, k], h, nPoints)
+                    dSijk1_d2λ = FiniteDiffOrder5.compute_second_derivative(compute_at,  Sijk1data[i, j, k], h, nPoints)
+                    Sijk3[i, j, k][compute_at] = ParameterizedDerivs.d2f_dt(dSijk1_dλ, dλ_dt[compute_at], dSijk1_d2λ, d2λ_dt[compute_at])
+                end
             else
                 i, j, k, l = indices
-                dMijkl2_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Mijkl2data[i, j, k, l], h, nPoints)
-                dMijkl2_d2λ = FiniteDiffOrder5.compute_second_derivative(compute_at,  Mijkl2data[i, j, k, l], h, nPoints)
-                Mijkl4[i, j, k, l][compute_at] = ParameterizedDerivs.d2f_dt(dMijkl2_dλ, dλ_dt[compute_at], dMijkl2_d2λ, d2λ_dt[compute_at])
+                if lmax_mass >= 4
+                    dMijkl2_dλ = FiniteDiffOrder5.compute_first_derivative(compute_at,  Mijkl2data[i, j, k, l], h, nPoints)
+                    dMijkl2_d2λ = FiniteDiffOrder5.compute_second_derivative(compute_at,  Mijkl2data[i, j, k, l], h, nPoints)
+                    Mijkl4[i, j, k, l][compute_at] = ParameterizedDerivs.d2f_dt(dMijkl2_dλ, dλ_dt[compute_at], dMijkl2_d2λ, d2λ_dt[compute_at])
+                end
             end
         end
     end
@@ -186,12 +224,8 @@ function moment_derivs_wf_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, 
 end
 
 
-function compute_waveform_moments_and_derivs_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, 
-    xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, 
-    t::AbstractArray, r::AbstractArray, dr_dt::AbstractArray, d2r_dt2::AbstractArray, θ::AbstractArray, dθ_dt::AbstractArray, d2θ_dt2::AbstractArray, ϕ::AbstractArray,
-    dϕ_dt::AbstractArray, d2ϕ_dt2::AbstractArray, Mij2data::AbstractArray, Mijk2data::AbstractArray, Mijkl2data::AbstractArray, Sij1data::AbstractArray, 
-    Sijk1data::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nPoints::Int64, h::Float64)
-
+function compute_waveform_moments_and_derivs!(a::Float64, E::Float64, L::Float64, C::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, t::AbstractArray, r::AbstractArray, dr_dt::AbstractArray, d2r_dt2::AbstractArray, θ::AbstractArray, dθ_dt::AbstractArray, d2θ_dt2::AbstractArray, ϕ::AbstractArray, dϕ_dt::AbstractArray, d2ϕ_dt2::AbstractArray, Mij2data::AbstractArray, Mijk2data::AbstractArray, Mijkl2data::AbstractArray, Sij1data::AbstractArray, Sijk1data::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nPoints::Int64, h::Float64, lmax_mass::Int64, lmax_current::Int64)
+    # println("Line 175")
     # convert trajectories to BL coords
     @inbounds for i=1:nPoints
         xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
@@ -206,8 +240,10 @@ function compute_waveform_moments_and_derivs_Mino!(a::Float64, E::Float64, L::Fl
         v[i] = EstimateMultipoleDerivs.norm_3d(vH[i]);
     end
 
+    # println("Line 185")
     EstimateMultipoleDerivs.analytic_moment_derivs_wf!(aH, vH, xH, q, Mij2data, Mijk2data, Mijkl2data, Sij1data, Sijk1data)
-    EstimateMultipoleDerivs.FiniteDifferences.moment_derivs_wf_Mino!(a, E, L, C, xBL, dr_dt, dθ_dt, Mijk2data, Mijkl2data, Sij1data, Sijk1data, Mijk3, Mijkl4, Sij2, Sijk3, nPoints, h)
+    # println("Line 188")
+    EstimateMultipoleDerivs.FiniteDifferences.moment_derivs_wf!(a, E, L, C, xBL, dr_dt, dθ_dt, Mijk2data, Mijkl2data, Sij1data, Sijk1data, Mijk3, Mijkl4, Sij2, Sijk3, nPoints, h, lmax_mass, lmax_current)
 end
 
 end
@@ -228,37 +264,13 @@ using ...ParameterizedDerivs
 using ...SymmetricTensors
 using ...MultipoleFitting
 
-@views function compute_waveform_moments_and_derivs!(a::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray,
-    vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, t::Vector{Float64}, r::Vector{Float64}, dr_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, θ::Vector{Float64},
-    dθ_dt::Vector{Float64}, d2θ_dt2::Vector{Float64}, ϕ::Vector{Float64}, dϕ_dt::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, Mij2_data::AbstractArray, Mijk2_data::AbstractArray, Mijkl2_data::AbstractArray,
-    Sij1_data::AbstractArray, Sijk1_data::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nHarm::Int64, Ωr::Float64, Ωθ::Float64, Ωϕ::Float64,
-    nPoints::Int64, n_freqs::Int64, chisq::Vector{Float64}, fit::String)
 
-    @inbounds for i=1:nPoints
-        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
-        vBL[i] = Vector{Float64}([dr_dt[i], dθ_dt[i], dϕ_dt[i]]);
-        aBL[i] = Vector{Float64}([d2r_dt2[i], d2θ_dt2[i], d2ϕ_dt2[i]]);
-
-        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
-        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
-        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
-
-        rH[i] = EstimateMultipoleDerivs.norm_3d(xH[i]);
-        v[i] = EstimateMultipoleDerivs.norm_3d(vH[i]);
-    end
-
-    # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
-    EstimateMultipoleDerivs.analytic_moment_derivs_wf!(aH, vH, xH, q, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data)
-    # estimate higher order derivative moments using fourier fits in BL time
-    MultipoleFitting.fit_moments_wf_BL!(t, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3, Mijkl4, Sij2, Sijk3, nHarm, Ωr, Ωθ, Ωϕ, nPoints, n_freqs, chisq, fit)
-end
-
-@views function compute_waveform_moments_and_derivs_Mino!(a::Float64, E::Float64, L::Float64, C::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, 
+@views function compute_waveform_moments_and_derivs!(a::Float64, E::Float64, L::Float64, C::Float64, q::Float64, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, 
     xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, λ::Vector{Float64}, r::Vector{Float64}, dr_dt::Vector{Float64},
     d2r_dt2::Vector{Float64}, θ::Vector{Float64}, dθ_dt::Vector{Float64}, d2θ_dt2::Vector{Float64}, ϕ::Vector{Float64},
     dϕ_dt::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, Mij2_data::AbstractArray, Mijk2_data::AbstractArray, Mijkl2_data::AbstractArray, Sij1_data::AbstractArray, 
     Sijk1_data::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, nHarm::Int64, γr::Float64, γθ::Float64, γϕ::Float64, 
-    nPoints::Int64, n_freqs::Int64, chisq::Vector{Float64}, fit::String)
+    nPoints::Int64, n_freqs::Int64, chisq::Vector{Float64}, fit::String, lmax_mass::Int64, lmax_current::Int64)
 
     @inbounds for i=1:nPoints
         xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
@@ -276,7 +288,7 @@ end
     # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
     EstimateMultipoleDerivs.analytic_moment_derivs_wf!(aH, vH, xH, q, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data)
     # estimate higher order derivative moments using fourier fits in Mino time
-    MultipoleFitting.fit_moments_wf_Mino!(a, E, L, C, λ, xBL, dr_dt, dθ_dt, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3, Mijkl4, Sij2, Sijk3, nHarm, γr, γθ, γϕ, nPoints, n_freqs, chisq, fit)
+    MultipoleFitting.fit_moments_wf!(a, E, L, C, λ, xBL, dr_dt, dθ_dt, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3, Mijkl4, Sij2, Sijk3, nHarm, γr, γθ, γϕ, nPoints, n_freqs, chisq, fit, lmax_mass, lmax_current)
 end
 
 end

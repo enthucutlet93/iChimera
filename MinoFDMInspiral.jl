@@ -1,6 +1,6 @@
 #=
 
-    In this file we evolve the chimera inspiral using the finite difference approach without exiting the ODE solver. This is equivalent to the inspiral in `ChimeraInspiral.jl`, but this version, where one doesn't continously exit and enter the solver,
+    In this file we evolve the chimera inspiral using the finite difference approach without exiting the ODE solver. This is equivalent to the inspiral in `FittedInspiral.jl`, but this version, where one doesn't continously exit and enter the solver,
     is the first step in making the evolution faster. However, at present, the bottleneck preventing this from being faster is the evaluation of the functions for the analytic derivatives of the multipole moments.
 
 =#
@@ -26,7 +26,7 @@ using ....EvolveConstants
 using ....Waveform
 using ....MultipoleFDM
 using JLD2
-using ...ChimeraInspiral
+using ...FittedInspiral
 using DifferentialEquations
 using Printf
 
@@ -123,7 +123,7 @@ function compute_inspiral(tInspiral::Float64, nPointsGeodesic::Int64, a::Float64
     # initial condition for Kerr geodesic trajectory
     t0 = 0.0
     t_Fluxes = ones(1) * t0;
-    rLSO = ChimeraInspiral.LSO_p(a)
+    rLSO = FittedInspiral.LSO_p(a)
 
     Δλi=h/10;    # initial time step for geodesic integration
 

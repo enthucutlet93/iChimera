@@ -18,18 +18,33 @@ module MultipoleMoments
 """
 
 
-const levi_civita_table = Dict(
-    (1, 2, 3) => 1,
-    (2, 3, 1) => 1,
-    (3, 1, 2) => 1,
-    (3, 2, 1) => -1,
-    (2, 1, 3) => -1,
-    (1, 3, 2) => -1
-)
+# const levi_civita_table = Dict(
+#     (1, 2, 3) => 1,
+#     (2, 3, 1) => 1,
+#     (3, 1, 2) => 1,
+#     (3, 2, 1) => -1,
+#     (2, 1, 3) => -1,
+#     (1, 3, 2) => -1
+# )
 
-function ε(i::Int, j::Int, k::Int)::Int
-    return get(levi_civita_table, (i, j, k), 0)
+# function ε(i::Int, j::Int, k::Int)::Int
+#     return get(levi_civita_table, (i, j, k), 0)
+# end
+
+@inline function ε(i::Int, j::Int, k::Int)::Int
+    if (i == 1 && j == 2 && k == 3) || 
+       (i == 2 && j == 3 && k == 1) || 
+       (i == 3 && j == 1 && k == 2)
+        return 1
+    elseif (i == 3 && j == 2 && k == 1) || 
+           (i == 2 && j == 1 && k == 3) || 
+           (i == 1 && j == 3 && k == 2)
+        return -1
+    else
+        return 0
+    end
 end
+
 
 δ(x::Int, y::Int)::Int = x == y ? 1 : 0
 

@@ -60,7 +60,7 @@ function ComputeDerivs!(x::AbstractVector{Float64}, sign_dr::Float64, sign_dθ::
   d5x_dt::AbstractVector{Float64}, d6x_dt::AbstractVector{Float64}, d7x_dt::AbstractVector{Float64}, d8x_dt::AbstractVector{Float64}, dx_dλ::AbstractVector{Float64}, d2x_dλ::AbstractVector{Float64}, d3x_dλ::AbstractVector{Float64},
   d4x_dλ::AbstractVector{Float64}, d5x_dλ::AbstractVector{Float64}, d6x_dλ::AbstractVector{Float64}, d7x_dλ::AbstractVector{Float64}, d8x_dλ::AbstractVector{Float64}, a::Float64, E::Float64, L::Float64, C::Float64)
 
-  ### COMPUTE DIRST-ORDER SPATIAL DERIVS WRT MINO TIME ###
+  ### COMPUTE FIRST-ORDER SPATIAL DERIVS WRT MINO TIME ###
   dx_dλ[1] = MinoDerivs1.dr_dλ(x, a, E, L, C) * sign_dr;
   dx_dλ[2] = MinoDerivs1.dθ_dλ(x, a, E, L, C) * sign_dθ;
   dx_dλ[3] = MinoDerivs1.dϕ_dλ(x, a, E, L, C);

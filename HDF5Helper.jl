@@ -7,12 +7,20 @@ end
 
 # creates 1D dataset
 function create_dataset!(file::HDF5.File, group_name::String, dataset_name::String, datatype::DataType, chunk_size::Int)
-    create_dataset(file[group_name], dataset_name, datatype, ((0,),(-1,)), chunk = (chunk_size,));
+    if group_name == ""
+        create_dataset(file, dataset_name, datatype, ((0,),(-1,)), chunk = (chunk_size,));
+    else
+        create_dataset(file[group_name], dataset_name, datatype, ((0,),(-1,)), chunk = (chunk_size,));
+    end
 end
 
 # appends 1D data to 1D dataset
 function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::Vector{Float64}, len_data::Int)
-    d = file[group_name][dataset_name];
+    if group_name == ""
+        d = file[dataset_name];
+    else
+        d = file[group_name][dataset_name];
+    end
     current_size = length(d);
     HDF5.set_extent_dims(d, (current_size+len_data,));
     d[current_size+1:current_size+len_data] = data;
@@ -20,7 +28,11 @@ end
 
 # appends float to 1D dataset
 function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::Float64)
-    d = file[group_name][dataset_name];
+    if group_name == ""
+        d = file[dataset_name];
+    else
+        d = file[group_name][dataset_name];
+    end
     current_size = length(d);
     HDF5.set_extent_dims(d, (current_size+1,));
     d[current_size+1] = data;

@@ -245,55 +245,6 @@ function aRRα(aSF_H::AbstractVector{Float64}, aSF_BL::AbstractVector{Float64}, 
     aSF_BL[2:4] = HarmonicCoords.aHtoBL(xH, zeros(3), aSF_H[2:4], a)
 end
 
-module FiniteDifferences
-using ...SelfAcceleration
-using ...HarmonicCoords
-using ...EstimateMultipoleDerivs
-using ...MultipoleFDM
-"""
-# Common Arguments in this module
-- `compute_at::Int64`: index at which to compute the self-acceleration. This is always at the center of the finite differences stencil.
-- `h::Float64`: step size for finite differences.
-"""
-
-# mutates the self-acceleration 4-vector
-@views function selfAcc_mino!(a::Float64, E::Float64, L::Float64, C::Float64, aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray,
-    rH::AbstractArray, vH::AbstractArray,  aH::AbstractArray, v::AbstractArray, t::AbstractArray, r::AbstractArray, dr_dt::AbstractArray, 
-    d2r_dt2::AbstractArray, θ::AbstractArray, dθ_dt::AbstractArray, d2θ_dt2::AbstractArray, ϕ::AbstractArray, dϕ_dt::AbstractArray, d2ϕ_dt2::AbstractArray, Mij5::AbstractArray, 
-    Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray, Mijk8::AbstractArray, Sij5::AbstractArray, Sij6::AbstractArray,
-    Mij2_data::AbstractArray, Mijk2_data::AbstractArray, Sij1_data::AbstractArray, q::Float64, compute_at::Int64, h::Float64)
-
-    # convert trajectories to BL coords
-    @inbounds for i in eachindex(t)
-        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
-        vBL[i] = Vector{Float64}([dr_dt[i], dθ_dt[i], dϕ_dt[i]]);
-        aBL[i] = Vector{Float64}([d2r_dt2[i], d2θ_dt2[i], d2ϕ_dt2[i]]);
-  
-        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
-        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
-        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
-
-        rH[i] = SelfAcceleration.norm_3d(xH[i]);
-        v[i] = SelfAcceleration.norm_3d(vH[i]);
-
-        xH[i] = xH[i];
-        vH[i] = vH[i];
-        aH[i] = aH[i];
-
-    end
-
-    # calculate first and second derivative of multipole moments from analytic expressions
-    EstimateMultipoleDerivs.analytic_moment_derivs_tr!(aH, vH, xH, q, Mij2_data, Mijk2_data, Sij1_data)
-
-    # estimate higher order derivatives of the multipole moments via finite differences
-    MultipoleFDM.diff_moments_tr_Mino!(a, E, L, C, xBL[compute_at], sign(dr_dt[compute_at]), sign(dθ_dt[compute_at]), Mij2_data, Mijk2_data, Sij1_data, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6, compute_at, size(r, 1), h)
-
-    # calculate self force in BL and harmonic coordinates
-    SelfAcceleration.aRRα(aSF_H, aSF_BL, xH[compute_at], v[compute_at], vH[compute_at], xBL[compute_at], rH[compute_at], a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
-end
-end
-
-
 module FourierFit
 using ...SelfAcceleration
 using ...HarmonicCoords
@@ -316,11 +267,11 @@ using ...MultipoleFitting
 """
 
 # mutates the self-acceleration 4-vector
-@views function selfAcc_Mino!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
+@views function selfAcc!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
     aH::AbstractArray, v::AbstractArray, λ::AbstractVector{Float64}, r::AbstractVector{Float64}, rdot::AbstractVector{Float64}, rddot::AbstractVector{Float64}, θ::AbstractVector{Float64}, θdot::AbstractVector{Float64},
     θddot::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, ϕdot::AbstractVector{Float64}, ϕddot::AbstractVector{Float64}, Mij5::AbstractArray, Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray,
     Mijk8::AbstractArray, Sij5::AbstractArray, Sij6::AbstractArray, Mij2_data::AbstractArray, Mijk2_data::AbstractArray, Sij1_data::AbstractArray, a::Float64, q::Float64, E::Float64, L::Float64, C::Float64, compute_at::Int64, nHarm::Int64,
-    ωr::Float64, ωθ::Float64, ωϕ::Float64, nPoints::Int64, n_freqs::Int64, chisq::AbstractVector{Float64}, fit::String)
+    ωr::Float64, ωθ::Float64, ωϕ::Float64, nPoints::Int64, n_freqs::Int64, chisq::AbstractVector{Float64}, fit::String, lmax_mass::Int64, lmax_current::Int64)
     
     # convert trajectories to BL coords
     @inbounds for i in eachindex(λ)
@@ -340,72 +291,9 @@ using ...MultipoleFitting
     EstimateMultipoleDerivs.analytic_moment_derivs_tr!(aH, vH, xH, q, Mij2_data, Mijk2_data, Sij1_data)
 
     # estimate higher order derivatives of the multipole moments via fourier fits
-    MultipoleFitting.fit_moments_tr_Mino!(a, E, L, C, λ, xBL[compute_at], sign(rdot[compute_at]), sign(θdot[compute_at]), Mij2_data, Mijk2_data, Sij1_data, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
-    compute_at, nHarm, ωr, ωθ, ωϕ, nPoints, n_freqs, chisq, fit)
+    MultipoleFitting.fit_moments_tr!(a, E, L, C, λ, xBL[compute_at], sign(rdot[compute_at]), sign(θdot[compute_at]), Mij2_data, Mijk2_data, Sij1_data, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
+    compute_at, nHarm, ωr, ωθ, ωϕ, nPoints, n_freqs, chisq, fit, lmax_mass, lmax_current)
     
-    # calculate self force in BL and harmonic coordinates
-    SelfAcceleration.aRRα(aSF_H, aSF_BL, xH[compute_at], v[compute_at], vH[compute_at], xBL[compute_at], rH[compute_at], a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
-end
-
-# mutates the self-acceleration 4-vector
-@views function selfAcc_Mino_quad!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
-    aH::AbstractArray, v::AbstractArray, λ::AbstractVector{Float64}, r::AbstractVector{Float64}, rdot::AbstractVector{Float64}, rddot::AbstractVector{Float64}, θ::AbstractVector{Float64}, θdot::AbstractVector{Float64},
-    θddot::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, ϕdot::AbstractVector{Float64}, ϕddot::AbstractVector{Float64}, Mij5::AbstractArray, Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray,
-    Mijk8::AbstractArray, Sij5::AbstractArray, Sij6::AbstractArray, Mij2_data::AbstractArray, a::Float64, q::Float64, E::Float64, L::Float64, C::Float64, compute_at::Int64, nHarm::Int64,
-    ωr::Float64, ωθ::Float64, ωϕ::Float64, nPoints::Int64, n_freqs::Int64, chisq::AbstractVector{Float64}, fit::String)
-    
-    # convert trajectories to BL coords
-    @inbounds for i in eachindex(λ)
-        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
-        vBL[i] = Vector{Float64}([rdot[i], θdot[i], ϕdot[i]]);
-        aBL[i] = Vector{Float64}([rddot[i], θddot[i], ϕddot[i]]);
-  
-        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
-        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
-        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
-
-        rH[i] = SelfAcceleration.norm_3d(xH[i]);
-        v[i] = SelfAcceleration.norm_3d(vH[i]);
-    end
-    
-    # calculate first and second derivative of multipole moments from analytic expressions
-    EstimateMultipoleDerivs.analytic_moment_derivs_tr_quad!(aH, vH, xH, q, Mij2_data)
-
-    # estimate higher order derivatives of the multipole moments via fourier fits
-    MultipoleFitting.fit_moments_tr_Mino_quad!(a, E, L, C, λ, xBL[compute_at], sign(rdot[compute_at]), sign(θdot[compute_at]), Mij2_data, Mij5, Mij6, Mij7, Mij8,
-    compute_at, nHarm, ωr, ωθ, ωϕ, nPoints, n_freqs, chisq, fit)
-    
-    # calculate self force in BL and harmonic coordinates
-    SelfAcceleration.aRRα(aSF_H, aSF_BL, xH[compute_at], v[compute_at], vH[compute_at], xBL[compute_at], rH[compute_at], a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
-end
-
-# mutates the self-acceleration 4-vector
-@views function selfAcc!(aSF_H::AbstractArray, aSF_BL::AbstractArray, xBL::AbstractArray, vBL::AbstractArray, aBL::AbstractArray, xH::AbstractArray, rH::AbstractArray, vH::AbstractArray,
-    aH::AbstractArray, v::AbstractArray, t::AbstractVector{Float64}, r::AbstractVector{Float64}, rdot::AbstractVector{Float64}, rddot::AbstractVector{Float64}, θ::AbstractVector{Float64}, θdot::AbstractVector{Float64},
-    θddot::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, ϕdot::AbstractVector{Float64}, ϕddot::AbstractVector{Float64}, Mij5::AbstractArray, Mij6::AbstractArray, Mij7::AbstractArray, Mij8::AbstractArray, Mijk7::AbstractArray,
-    Mijk8::AbstractArray,Sij5::AbstractArray, Sij6::AbstractArray, Mij2_data::AbstractArray, Mijk2_data::AbstractArray, Sij1_data::AbstractArray, a::Float64, q::Float64, compute_at::Int64, nHarm::Int64, Ωr::Float64, Ωθ::Float64, Ωϕ::Float64,
-    nPoints::Int64, n_freqs::Int64, chisq::AbstractVector{Float64}, fit::String)
-    
-    # convert trajectories to BL coords
-    @inbounds for i in eachindex(t)
-        xBL[i] = Vector{Float64}([r[i], θ[i], ϕ[i]]);
-        vBL[i] = Vector{Float64}([rdot[i], θdot[i], ϕdot[i]]);
-        aBL[i] = Vector{Float64}([rddot[i], θddot[i], ϕddot[i]]);
-    
-        HarmonicCoords.xBLtoH!(xH[i], xBL[i], a);
-        HarmonicCoords.vBLtoH!(vH[i], xH[i], vBL[i], a); 
-        HarmonicCoords.aBLtoH!(aH[i], xH[i], vBL[i], aBL[i], a);
-
-        rH[i] = SelfAcceleration.norm_3d(xH[i]);
-        v[i] = SelfAcceleration.norm_3d(vH[i]);
-    end
-    
-    # calculate first and second derivative of multipole moments from analytic expressions
-    EstimateMultipoleDerivs.analytic_moment_derivs_tr!(aH, vH, xH, q, Mij2_data, Mijk2_data, Sij1_data)
-
-    # estimate higher order derivatives of the multipole moments via fourier fits
-    MultipoleFitting.fit_moments_tr_BL!(t, Mij2_data, Mijk2_data, Sij1_data, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6, compute_at, nHarm, Ωr, Ωθ, Ωϕ, nPoints, n_freqs, chisq, fit)
-
     # calculate self force in BL and harmonic coordinates
     SelfAcceleration.aRRα(aSF_H, aSF_BL, xH[compute_at], v[compute_at], vH[compute_at], xBL[compute_at], rH[compute_at], a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
 end
