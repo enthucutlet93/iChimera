@@ -49,6 +49,8 @@ using ..HarmonicCoords
 - `L::Float64`: axial (i.e., z-component of the) angular momentum per unit mass (Eq. 15).
 - `C::Float64`: Carter constant---note that this C is what is commonly referred to as 'Q' elsewhere (Eq. 17).
 - `nHarm::Int64`: Number of radial harmonic frequencies in the fourier fit.
+- `lmax_mass::Int64`: maximum mass-type multipole moment l mode to include in the flux and waveform computation with 2 ≤ lmax ≤ 4
+- `lmax_current::Int64` maximum current-type multipole moment l mode to include in the flux and waveform computation with 1 ≤ lmax ≤ 3 (lmax = 1 excludes any current-type moment and only up to l=3 included at this time)
 """
 
 norm2_3d(u::AbstractVector{Float64}) = u[1] * u[1] + u[2] * u[2] + u[3] * u[3]
@@ -56,19 +58,6 @@ norm_3d(u::AbstractVector{Float64}) = sqrt(norm2_3d(u))
 
 function analytic_moment_derivs_wf!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Mijkl2::AbstractArray, Sij1::AbstractArray, Sijk1::AbstractArray)
     len = length(aH)
-    @inbounds for i=1:3
-        @inbounds for j=1:3
-            Mij2[i, j] = zeros(len)
-            Sij1[i, j] = zeros(len)
-            @inbounds for k=1:3
-                Mijk2[i, j, k] = zeros(len)
-                Sijk1[i, j, k] = zeros(len)
-                @inbounds for l=1:3
-                    Mijkl2[i, j, k, l] = zeros(len)
-                end
-            end
-        end
-    end
 
     @inbounds for m in eachindex(aH)
         @inbounds for i=1:3
@@ -90,15 +79,6 @@ end
 # compute first and second derivatives of the mass and current multipole moments for self-force and flux computation from analytic expressions
 function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Sij1::AbstractArray)
     len = length(aH)
-    @inbounds for i=1:3
-        @inbounds for j=1:3
-            Mij2[i, j] = zeros(len)
-            Sij1[i, j] = zeros(len)
-            @inbounds for k=1:3
-                Mijk2[i, j, k] = zeros(len)
-            end
-        end
-    end
     
     @inbounds for m in eachindex(aH)
         @inbounds for i=1:3
@@ -112,37 +92,6 @@ function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::A
         end
     end
 end
-
-
-# # compute first and second derivatives of the mass and current multipole moments for waveform computation from analytic expressions
-# function analytic_moment_derivs_wf!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Mijkl2::AbstractArray, Sij1::AbstractArray, Sijk1::AbstractArray)
-#     @inbounds for i=1:3
-#         for j=1:3
-#             Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
-#             Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
-#             @inbounds for k=1:3
-#                 Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
-#                 Sijk1[i, j, k] = MultipoleMoments.dotSijk.(aH, vH, xH, q, i, j, k)
-#                 @inbounds for l=1:3
-#                     Mijkl2[i, j, k, l] = MultipoleMoments.ddotMijkl.(aH, vH, xH, q, i, j, k, l)
-#                 end
-#             end
-#         end
-#     end
-# end
-
-# # compute first and second derivatives of the mass and current multipole moments for self-force and flux computation from analytic expressions
-# function analytic_moment_derivs_tr!(aH::AbstractArray, vH::AbstractArray,  xH::AbstractArray, q::Float64, Mij2::AbstractArray, Mijk2::AbstractArray, Sij1::AbstractArray)
-#     @inbounds for i=1:3
-#         @inbounds for j=1:3
-#             Mij2[i, j] = MultipoleMoments.ddotMij.(aH, vH, xH, q, i, j)
-#             Sij1[i, j] = MultipoleMoments.dotSij.(aH, vH, xH, q, i, j)
-#             @inbounds for k=1:3
-#                 Mijk2[i, j, k] = MultipoleMoments.ddotMijk.(aH, vH, xH, q, i, j, k)
-#             end
-#         end
-#     end
-# end
 
 module FiniteDifferences
 using ..EstimateMultipoleDerivs

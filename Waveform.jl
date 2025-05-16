@@ -24,7 +24,6 @@ using Combinatorics, LinearAlgebra
 - `PhiSource::Float64`: azimuthal angle of the unit vector pointing to the EMRI system in the SSB frame
 - `ThetaKerr::Float64`: polar angle of the MBH's spin vector in the SSB frame
 - `PhiKerr::Float64`: azimuthal angle of the MBH's spin vector in the SSB frame
-- `mass_quad::Bool`: if true, keep only up to mass quadrupole
 """
 
 const spatial_indices_3::Array = [[x, y, z] for x=1:3, y=1:3, z=1:3]

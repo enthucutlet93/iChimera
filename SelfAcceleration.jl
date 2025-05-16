@@ -264,6 +264,8 @@ using ...MultipoleFitting
 - `n_freqs::Int64`: number of non-zero fitting frequencies in the fourier series expansion.
 - `chisq::AbstractVector{Float64}`: chi-squared value of the fit. In practice this is just the output of the GSL solver, so one only passes as argument [0.0].
 - `fit::String`: type of fitting to perform. Either "GSL" for fits using Julia's GSL wrapper, or "Julia" to use Julia's base least squares solver.
+- `lmax_mass::Int64`: maximum mass-type multipole moment l mode to include in the flux and waveform computation with 2 ≤ lmax ≤ 4
+- `lmax_current::Int64` maximum current-type multipole moment l mode to include in the flux and waveform computation with 1 ≤ lmax ≤ 3 (lmax = 1 excludes any current-type moment and only up to l=3 included at this time)
 """
 
 # mutates the self-acceleration 4-vector

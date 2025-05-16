@@ -16,4 +16,4 @@ Chimera.load_waveform(emri);
 
 emri.frame = "Source";
 @time Chimera.compute_waveform(emri);
-Chimera.load_waveform(emri);
+t, hp, hc = Chimera.load_waveform(emri);

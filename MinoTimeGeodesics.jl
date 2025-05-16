@@ -118,7 +118,7 @@ file 'MinoFDMInspiral.jl'.
 """
 function compute_kerr_geodesic(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, nPoints::Int64, specify_params::Bool, λmax::Float64=3000.0, Δλi::Float64=1.0, reltol::Float64=1e-10, abstol::Float64=1e-10;
     ics::SVector{4, Float64}=SA[0.0, 0.0, 0.0, 0.0], E::Float64=0.0, L::Float64=0.0, Q::Float64=0.0, C::Float64=0.0, ra::Float64=0.0, p3::Float64=0.0, p4::Float64=0.0, zp::Float64=0.0, zm::Float64=0.0,
-    data_path::String="Results/", save_to_file::Bool=false)
+    data_path::String="Results/", save_to_file::Bool=false, interpolate_sol::Bool=true)
 
     if !specify_params
         E, L, Q, C, ra, p3, p4, zp, zm = compute_ODE_params(a, p, e, θmin, sign_Lz)
@@ -131,7 +131,11 @@ function compute_kerr_geodesic(a::Float64, p::Float64, e::Float64, θmin::Float6
     λspan = (0.0, λmax); saveat_λ = range(start=λspan[1], length=nPoints, stop=λspan[2])
 
     prob = e == 0.0 ? ODEProblem(HJ_Eqns_circular, ics, λspan, params) : ODEProblem(HJ_Eqns, ics, λspan, params);
-    sol = solve(prob, AutoTsit5(RK4()), adaptive=true, dt=Δλi, reltol = reltol, abstol = abstol, saveat=saveat_λ);
+    if interpolate_sol
+        sol = solve(prob, AutoTsit5(RK4()), adaptive=true, dt=Δλi, reltol = reltol, abstol = abstol, saveat=saveat_λ);
+    else
+        return solve(prob, AutoTsit5(RK4()), adaptive=true, dt=Δλi, reltol = reltol, abstol = abstol, save_everystep = false);
+    end
  
     # deconstruct solution
     λ = sol.t;
@@ -139,6 +143,11 @@ function compute_kerr_geodesic(a::Float64, p::Float64, e::Float64, θmin::Float6
     psi = sol[2, :];
     chi = mod.(sol[3, :], 2π);
     ϕ = sol[4, :];
+
+    # check initial conditions satisfied
+    if !isapprox(ics, sol(0.0))
+        throw(ArgumentError("Initial conditions not satisfied. ics = $(ics), sol(0.0) = $(sol(0.0))"))
+    end
 
     # convert to BL coordinates
     dt_dλ = zeros(nPoints); dψ_dλ = zeros(nPoints); dχ_dλ = zeros(nPoints); dϕ_dλ = zeros(nPoints); dϕ_dt = zeros(nPoints);

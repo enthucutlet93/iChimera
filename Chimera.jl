@@ -1,6 +1,6 @@
 #=
 
-    In this file we write a master composite type and associated methods for inspirals using this package.
+    In this file we write a master composite type and associated methods for computing inspirals using this package.
 
 =#
 
@@ -36,6 +36,7 @@ mutable struct EMRI
     PhiK::Float64 # (waveform — SSB frame) MBH spin azimuthal orientation in SSB frame
     ThetaObs::Float64 # (waveform — source frame) observer polar orientation
     PhiObs::Float64 # (waveform — source frame) observer azimuthal orientation
+    dt_save::Float64 # time interval in seconds between saving data points (e.g., waveform, trajectory, etc.)
     path::String # path for saving output files
     T_secs::Float64 # maximum orbit evolution time in seconds
     M::Float64 # mass of the massive black hole
@@ -50,15 +51,15 @@ mutable struct EMRI
     h::Float64 # time step between points in geodesic solver — fixed due to use of finite differences to compute waveform mulitpole moment derivatives
     compute_SF_frac::Float64 # determines how often the self-force is to be computed as a fraction of the maximum time period: Δt_SF = compute_SF_frac * (2π / min(ω)), where ω are the fundamental frequencies
     inspiral_type::String # type of inspiral: "Fitted" will use Fourier fits and finite difference methods (if use_FDM = true), "Analytic" will not use any Fourier fits or finite difference methods
+    save_every::Int64 # save solution to file after every save_every steps
     save_traj::Bool # save BL trajectory
-    save_SF::Bool # save BL self-force
     save_constants::Bool # save constants of motion
     save_fluxes::Bool # save fluxes
     save_gamma::Bool # save gamma factor
     # checks to make sure that the parameters are valid
     EMRI(a, p, e, inclination, inclination_type, θmin, sign_Lz, mass_ratio, lmax_mass, lmax_current, psi0, chi0, phi0, frame, ThetaS,
-        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, path, T_secs, M, obs_dist, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics,
-        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_traj, save_SF, save_constants, save_fluxes, save_gamma) = begin
+        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, dt_save, path, T_secs, M, obs_dist, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics,
+        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_every, save_traj, save_constants, save_fluxes, save_gamma) = begin
     if a < 0.0 || a > 1.0
         error("Spin parameter 'a' must be between 0 and 1.")
     elseif p <= 0.0
@@ -93,6 +94,8 @@ mutable struct EMRI
         error("ThetaObs 'ThetaObs' must be between 0 and 180 degrees.")
     elseif PhiObs < 0.0 || PhiObs > 360.0
         error("PhiObs 'PhiObs' must be between 0 and 360 degrees.")
+    elseif dt_save <= 0.0
+        error("Time interval between saving data points 'dt_save' must be positive.")
     elseif T_secs <= 0.0
         error("Maximum orbit evolution time 'T_secs' must be positive.")
     elseif M <= 0.0
@@ -119,11 +122,11 @@ mutable struct EMRI
         error("Compute SF fraction 'compute_SF_frac' must be greater than step size 'h', i.e., geodesic time length must be greater than step size h.")
     elseif inspiral_type != "Fitted" && inspiral_type != "Analytic"
         error("Inspiral type 'inspiral_type' must be either 'Fitted' or 'Analytic'.")
+    elseif save_every <= 0
+        error("Save every 'save_every' must be positive.")
     else
         new(a, p, e, inclination, inclination_type, θmin, 
-        sign_Lz, mass_ratio, lmax_mass, lmax_current, psi0, chi0, phi0, frame, ThetaS, PhiS, ThetaK, PhiK, ThetaObs, PhiObs, path, T_secs, M, obs_dist,
-        use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics, fit_time_range_factor, h, compute_SF_frac, inspiral_type,
-        save_traj, save_SF, save_constants, save_fluxes, save_gamma)
+        sign_Lz, mass_ratio, lmax_mass, lmax_current, psi0, chi0, phi0, frame, ThetaS, PhiS, ThetaK, PhiK, ThetaObs, PhiObs, dt_save, path, T_secs, M, obs_dist, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics, fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_every, save_traj, save_constants, save_fluxes, save_gamma)
     end
     end
 end
@@ -160,6 +163,7 @@ function EMRI(
     PhiK::Float64,
     ThetaObs::Float64,
     PhiObs::Float64,
+    dt_save::Float64,
     path::String,
     T_secs::Float64,
     M::Float64,
@@ -174,8 +178,8 @@ function EMRI(
     h::Float64,
     compute_SF_frac::Float64,
     inspiral_type::String,
+    save_every::Int64,
     save_traj::Bool,
-    save_SF::Bool,
     save_constants::Bool,
     save_fluxes::Bool,
     save_gamma::Bool)
@@ -212,6 +216,8 @@ function EMRI(
         error("ThetaObs 'ThetaObs' must be between 0 and 180 degrees.")
     elseif PhiObs < 0.0 || PhiObs > 360.0
         error("PhiObs 'PhiObs' must be between 0 and 360 degrees.")
+    elseif dt_save <= 0.0
+        error("Time interval between saving data points 'dt_save' must be positive.")
     elseif T_secs <= 0.0
         error("Maximum orbit evolution time 'T_secs' must be positive.")
     elseif M <= 0.0
@@ -238,11 +244,13 @@ function EMRI(
         error("Compute SF fraction 'compute_SF_frac' must be greater than step size 'h', i.e., geodesic time length must be greater than step size h.")
     elseif inspiral_type != "Fitted" && inspiral_type != "Analytic"
         error("Inspiral type 'inspiral_type' must be either 'Fitted' or 'Analytic'.")
+    elseif save_every <= 0
+        error("Save every 'save_every' must be positive.")
     end
     theta_min = compute_theta_min(a, p, e, inclination, inclination_type, sign_Lz)
     return EMRI(a, p, e, inclination, inclination_type, theta_min, sign_Lz, mass_ratio, lmax_mass, lmax_current, psi0, chi0, phi0, frame, ThetaS,
-        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, path, T_secs, M, obs_dist, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics,
-        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_traj, save_SF, save_constants, save_fluxes, save_gamma)
+        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, dt_save, path, T_secs, M, obs_dist, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarmonics,
+        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_every, save_traj, save_constants, save_fluxes, save_gamma)
 end
 
 function compute_inspiral(emri; JIT::Bool = false)
@@ -269,6 +277,7 @@ function compute_inspiral(emri; JIT::Bool = false)
     ### evolution time ###
     MtoSecs = Mass_MBH * Grav_Newton / c^3; # conversion from t(M) -> t(s)
     t_max_M = t_max_secs / MtoSecs; # units of M
+    dt_save_M = emri.dt_save / MtoSecs; # units of M
 
     if emri.inspiral_type == "Fitted" # Mino time
         if e != 0.0 && inclination != 0.0
@@ -281,7 +290,7 @@ function compute_inspiral(emri; JIT::Bool = false)
             compute_fluxes = compute_SF_frac * minimum(@. 2π /ω[2:3])
         end
         
-        FittedInspiral.compute_inspiral(emri.a, emri.p, emri.e, emri.θmin, emri.sign_Lz, emri.mass_ratio, emri.psi0, emri.chi0, emri.phi0, emri.nPointsFit, emri.nHarmonics, emri.fit_time_range_factor, compute_fluxes, t_max_M, emri.use_FDM, emri.fit_type, emri.reltol, emri.abstol; h=emri.h, data_path=emri.path, JIT=JIT, lmax_mass=emri.lmax_mass, lmax_current=emri.lmax_current, save_traj=emri.save_traj, save_SF=emri.save_SF, save_constants=emri.save_constants, save_fluxes=emri.save_fluxes, save_gamma=emri.save_gamma)
+        FittedInspiral.compute_inspiral(emri.a, emri.p, emri.e, emri.θmin, emri.sign_Lz, emri.mass_ratio, emri.psi0, emri.chi0, emri.phi0, emri.nPointsFit, emri.nHarmonics, emri.fit_time_range_factor, compute_fluxes, t_max_M, emri.use_FDM, emri.fit_type, emri.reltol, emri.abstol; h=emri.h, data_path=emri.path, JIT=JIT, lmax_mass=emri.lmax_mass, lmax_current=emri.lmax_current, save_traj=emri.save_traj, save_constants=emri.save_constants, save_fluxes=emri.save_fluxes, save_gamma=emri.save_gamma, dt_save=dt_save_M, save_every=emri.save_every);
     elseif emri.inspiral_type == "Analytic" # BL time
         if e != 0.0 && inclination != 0.0
             compute_fluxes = compute_SF_frac * minimum(@. 2π /Ω[1:3])
@@ -293,8 +302,7 @@ function compute_inspiral(emri; JIT::Bool = false)
             compute_fluxes = compute_SF_frac * minimum(@. 2π /Ω[2:3])
         end
 
-        nPointsGeodesic = 50; # number of points in geodesic solver
-        AnalyticInspiral.BLTime.compute_inspiral(emri.a, emri.p, emri.e, emri.θmin, emri.sign_Lz, emri.mass_ratio, emri.psi0, emri.chi0, emri.phi0, nPointsGeodesic, compute_fluxes, t_max_M, emri.reltol, emri.abstol; data_path=emri.path, JIT=JIT, lmax_mass=emri.lmax_mass, lmax_current=emri.lmax_current, save_traj=emri.save_traj, save_SF=emri.save_SF, save_constants=emri.save_constants, save_fluxes=emri.save_fluxes, save_gamma=emri.save_gamma)
+        AnalyticInspiral.BLTime.compute_inspiral(emri.a, emri.p, emri.e, emri.θmin, emri.sign_Lz, emri.mass_ratio, emri.psi0, emri.chi0, emri.phi0, compute_fluxes, t_max_M, dt_save_M, emri.save_every, emri.reltol, emri.abstol; data_path=emri.path, JIT=JIT, lmax_mass=emri.lmax_mass, lmax_current=emri.lmax_current, save_traj=emri.save_traj, save_constants=emri.save_constants, save_fluxes=emri.save_fluxes, save_gamma=emri.save_gamma)
     end
 end
 

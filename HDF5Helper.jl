@@ -15,7 +15,7 @@ function create_dataset!(file::HDF5.File, group_name::String, dataset_name::Stri
 end
 
 # appends 1D data to 1D dataset
-function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::Vector{Float64}, len_data::Int)
+function append_data!(file::HDF5.File, group_name::String, dataset_name::String, data::AbstractVector{Float64}, len_data::Int)
     if group_name == ""
         d = file[dataset_name];
     else

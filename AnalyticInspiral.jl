@@ -9,7 +9,7 @@ LSO_r(a::Float64) = (3 + Z_2(a) - sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a)))
 LSO_p(a::Float64) = (3 + Z_2(a) + sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a))))   # prograde LSO
 
 
-function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_SF::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
+function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
     create_dataset!(file, "", "t", Float64, chunk_size);
 
     traj_group_name = "Trajectory"
@@ -19,12 +19,6 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
         create_dataset!(file, traj_group_name, "r", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "theta", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "phi", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "r_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "theta_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "phi_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "r_ddot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "theta_ddot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "phi_ddot", Float64, chunk_size);
     end
 
     if save_gamma
@@ -34,38 +28,24 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
     constants_group_name = "ConstantsOfMotion"
     create_file_group!(file, constants_group_name);
     if save_constants || save_fluxes
-        create_dataset!(file, constants_group_name, "t", Float64, 1);
+        create_dataset!(file, constants_group_name, "t", Float64, chunk_size);
     end
 
     if save_constants
-        create_dataset!(file, constants_group_name, "Energy", Float64, 1);
-        create_dataset!(file, constants_group_name, "AngularMomentum", Float64, 1);
-        create_dataset!(file, constants_group_name, "CarterConstant", Float64, 1);
-        create_dataset!(file, constants_group_name, "AltCarterConstant", Float64, 1);
-        create_dataset!(file, constants_group_name, "p", Float64, 1);
-        create_dataset!(file, constants_group_name, "eccentricity", Float64, 1);
-        create_dataset!(file, constants_group_name, "theta_min", Float64, 1);
+        create_dataset!(file, constants_group_name, "Energy", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "AngularMomentum", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "CarterConstant", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "AltCarterConstant", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "p", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "eccentricity", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "theta_min", Float64, chunk_size);
     end
 
     if save_fluxes
-        create_dataset!(file, constants_group_name, "Edot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Ldot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Qdot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Cdot", Float64, 1);
-    end
-
-
-    SF_group_name = "SelfForce"
-    create_file_group!(file, SF_group_name);
-    if save_SF
-        create_dataset!(file, SF_group_name, "self_acc_BL_t", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_r", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_θ", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_ϕ", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_t", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_x", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_y", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_z", Float64, 1);
+        create_dataset!(file, constants_group_name, "Edot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Ldot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Qdot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Cdot", Float64, chunk_size);
     end
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
@@ -109,22 +89,14 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
     return file
 end
 
-
-function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64}, save_traj::Bool, save_gamma::Bool)
+@views function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dt_dτ::Vector{Float64}, save_traj::Bool, save_gamma::Bool)
     append_data!(file, "", "t", t[1:chunk_size], chunk_size);
-
     traj_group_name = "Trajectory"
 
     if save_traj
         append_data!(file, traj_group_name, "r", r[1:chunk_size], chunk_size);
         append_data!(file, traj_group_name, "theta", θ[1:chunk_size], chunk_size);
         append_data!(file, traj_group_name, "phi", ϕ[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "r_dot", dr_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "theta_dot", dθ_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "phi_dot", dϕ_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "r_ddot", d2r_dt2[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "theta_ddot", d2θ_dt2[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "phi_ddot", d2ϕ_dt2[1:chunk_size], chunk_size);
     end
 
     if save_gamma
@@ -132,7 +104,7 @@ function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::V
     end
 end
 
-function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray, lmax_mass::Int64, lmax_current::Int64)
+@views function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray, lmax_mass::Int64, lmax_current::Int64)
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
     wave_group_name = "WaveformMoments"
@@ -172,27 +144,27 @@ function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, 
     end
 end
 
-function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64, save_constants::Bool, save_fluxes::Bool)
+@views function save_constants!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, E::Vector{Float64}, dE_dt::Vector{Float64}, L::Vector{Float64}, dL_dt::Vector{Float64}, Q::Vector{Float64}, dQ_dt::Vector{Float64}, C::Vector{Float64}, dC_dt::Vector{Float64}, p::Vector{Float64}, e::Vector{Float64}, θmin::Vector{Float64}, save_constants::Bool, save_fluxes::Bool)
     constants_group_name = "ConstantsOfMotion"
     if save_constants || save_fluxes
-        append_data!(file, constants_group_name, "t", t);
+        append_data!(file, constants_group_name, "t", t[1:chunk_size], chunk_size);
     end
 
     if save_constants
-        append_data!(file, constants_group_name, "Energy", E);
-        append_data!(file, constants_group_name, "AngularMomentum", L);
-        append_data!(file, constants_group_name, "CarterConstant", C);
-        append_data!(file, constants_group_name, "AltCarterConstant", Q);
-        append_data!(file, constants_group_name, "p", p);
-        append_data!(file, constants_group_name, "eccentricity", e);
-        append_data!(file, constants_group_name, "theta_min", θmin);
+        append_data!(file, constants_group_name, "Energy", E[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "AngularMomentum", L[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "CarterConstant", C[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "AltCarterConstant", Q[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "p", p[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "eccentricity", e[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "theta_min", θmin[1:chunk_size], chunk_size);
     end
 
     if save_fluxes
-        append_data!(file, constants_group_name, "Edot", dE_dt);
-        append_data!(file, constants_group_name, "Ldot", dL_dt);
-        append_data!(file, constants_group_name, "Qdot", dQ_dt);
-        append_data!(file, constants_group_name, "Cdot", dC_dt);
+        append_data!(file, constants_group_name, "Edot", dE_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Ldot", dL_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Qdot", dQ_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Cdot", dC_dt[1:chunk_size], chunk_size);
     end
 end
 
@@ -227,7 +199,7 @@ function load_waveform_moments(sol_filename::String, lmax_mass::Int64, lmax_curr
         Mij2[3,3] = h5f["WaveformMoments/Mij33_2"][:];
     end
 
-    if lmax_mass > 2 || lmax_mass == 2 && lmax_current
+    if lmax_current >= 2
         Sij2[1,1] = h5f["WaveformMoments/Sij11_2"][:];
         Sij2[1,2] = h5f["WaveformMoments/Sij12_2"][:];
         Sij2[1,3] = h5f["WaveformMoments/Sij13_2"][:];
@@ -269,7 +241,7 @@ function load_waveform_moments(sol_filename::String, lmax_mass::Int64, lmax_curr
         Mijk3[3,3,3] = zeros(length(Mij2[3,3]));
     end
 
-    if lmax_mass > 3 || lmax_mass == 3 && lmax_current
+    if lmax_current == 3
         Sijk3[1,1,1] = h5f["WaveformMoments/Sijk111_3"][:];
         Sijk3[1,1,2] = h5f["WaveformMoments/Sijk112_3"][:];
         Sijk3[1,2,2] = h5f["WaveformMoments/Sijk122_3"][:];
@@ -342,21 +314,21 @@ function load_waveform_moments(sol_filename::String, lmax_mass::Int64, lmax_curr
     return t, Mij2, Mijk3, Mijkl4, Sij2, Sijk3
 end
 
-function load_trajectory(sol_filename::String; Mino::Bool=false)
+function load_trajectory(sol_filename::String)
     h5f = h5open(sol_filename, "r")
     t = h5f["t"][:]
     r = h5f["Trajectory/r"][:]
     θ = h5f["Trajectory/theta"][:]
     ϕ = h5f["Trajectory/phi"][:]
-    dr_dt = h5f["Trajectory/r_dot"][:]
-    dθ_dt = h5f["Trajectory/theta_dot"][:]
-    dϕ_dt = h5f["Trajectory/phi_dot"][:]
-    d2r_dt2 = h5f["Trajectory/r_ddot"][:]
-    d2θ_dt2 = h5f["Trajectory/theta_ddot"][:]
-    d2ϕ_dt2 = h5f["Trajectory/phi_ddot"][:]
+    # dr_dt = h5f["Trajectory/r_dot"][:]
+    # dθ_dt = h5f["Trajectory/theta_dot"][:]
+    # dϕ_dt = h5f["Trajectory/phi_dot"][:]
+    # d2r_dt2 = h5f["Trajectory/r_ddot"][:]
+    # d2θ_dt2 = h5f["Trajectory/theta_ddot"][:]
+    # d2ϕ_dt2 = h5f["Trajectory/phi_ddot"][:]
     # dt_dτ = h5f["Trajectory/Gamma"][:]
     close(h5f)
-    return t, r, θ, ϕ, dr_dt, dθ_dt, dϕ_dt, d2r_dt2, d2θ_dt2, d2ϕ_dt2
+    return t, r, θ, ϕ
 end
 
 function load_constants_of_motion(sol_filename::String)
@@ -407,7 +379,37 @@ using JLD2
 using Printf
 using ...AnalyticInspiral
 
-function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nPointsGeodesic::Int64, compute_SF::Float64, tInspiral::Float64, reltol::Float64=1e-14, abstol::Float64=1e-14; data_path::String="Data/", JIT::Bool=false, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_SF::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
+"""
+    compute_inspiral(args...)
+
+Evolve inspiral with Boyer-Lindquist coordinate time parameterization and fully analyitc computation of the approximate self-force (as opposed to the Fourier fitting approach).
+
+- `tInspiral::Float64`: total coordinate time to evolve the inspiral.
+- `compute_SF::Float64`: BL time interval between self-force computations.
+- `q::Float64`: mass ratio.
+- `a::Float64`: black hole spin 0 < a < 1.
+- `p::Float64`: initial semi-latus rectum.
+- `e::Float64`: initial eccentricity.
+- `θmin::Float64`: initial inclination angle.
+- `sign_Lz::Int64`: sign of the z-component of the angular momentum (+1 for prograde, -1 for retrograde).
+- `psi_0::Float64`: initial radial angle variable.
+- `chi_0::Float64`: initial polar angle variable.
+- `phi_0::Float64`: initial azimuthal angle.
+- `reltol`: relative tolerance for ODE solver.
+- `abstol`: absolute tolerance for ODE solver.
+- `JIT::Bool`: dummy run to JIT compile function.
+- `data_path::String`: path to save data.
+- `lmax_mass::Int64`: maximum mass-type multipole moment l mode to include in the flux and waveform computation with 2 ≤ lmax ≤ 4
+- `lmax_current::Int64` maximum current-type multipole moment l mode to include in the flux and waveform computation with 1 ≤ lmax ≤ 3 (lmax = 1 excludes any current-type moment and only up to l=3 included at this time)
+- `save_traj::Bool`: whether to save the trajectory data.
+- `save_constants::Bool`: whether to save the constants of motion.
+- `save_fluxes::Bool`: whether to save the fluxes.
+- `save_gamma::Bool`: whether to save the Lorentz factor.
+- `dt_save::Float64`: time interval between saving trajectory data.
+- `save_every::Int64`: number of points in each chunk of data when saving to file.
+"""
+
+function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, compute_SF::Float64, tInspiral::Float64, dt_save::Float64, save_every::Int64, reltol::Float64=1e-14, abstol::Float64=1e-14; data_path::String="Data/", JIT::Bool=false, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
 
     # create solution file
     sol_filename=solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, lmax_mass, lmax_current, data_path)
@@ -423,20 +425,31 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     file = h5open(sol_filename, "w")
 
     # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
-    AnalyticInspiral.initialize_solution_file!(file, nPointsGeodesic-1, lmax_mass, lmax_current, save_traj, save_SF, save_constants, save_fluxes, save_gamma)
+    AnalyticInspiral.initialize_solution_file!(file, save_every, lmax_mass, lmax_current, save_traj, save_constants, save_fluxes, save_gamma)
+
+    # initialize data arrays for trajectory and multipole moments which will be used for post-processing
+    idx_save_1 = 1;
+    time = zeros(save_every)
+    r = zeros(save_every)
+    theta = zeros(save_every)
+    phi = zeros(save_every)
+    gamma = zeros(save_every)
+    Mij2_data = [zeros(save_every) for i=1:3, j=1:3]
+    Sij2_data = [zeros(save_every) for i=1:3, j=1:3];
+    Mijk3_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3];
+    Sijk3_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3];
+    Mijkl4_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3, l=1:3];
 
     # create arrays to store multipole moments necessary for waveform computation
-    Mij2_wf = [Float64[] for i=1:3, j=1:3];
-    Mijk3_wf = [Float64[] for i=1:3, j=1:3, k=1:3];
-    Mijkl4_wf = [Float64[] for i=1:3, j=1:3, k=1:3, l=1:3];
-    Sij2_wf = [Float64[] for i=1:3, j=1:3];
-    Sijk3_wf = [Float64[] for i=1:3, j=1:3, k=1:3];
+    Mij2_data_wf_temp = zeros(3, 3);
+    Mijk3_data_wf_temp = zeros(3, 3, 3);
+    Mijkl4_data_wf_temp = zeros(3, 3, 3, 3);
+    Sij2_data_wf_temp = zeros(3, 3);
+    Sijk3_data_wf_temp = zeros(3, 3, 3);
     
-    # initialize data arrays
-    aSF_BL = Vector{Vector{Float64}}()
-    aSF_H = Vector{Vector{Float64}}()
-
     # initialize derivative arrays
+    xBL = zeros(3); vBL = zeros(3); aBL = zeros(3);
+    
     dxBL_dt=zeros(3); d2xBL_dt=zeros(3); d3xBL_dt=zeros(3); d4xBL_dt=zeros(3);
     d5xBL_dt=zeros(3); d6xBL_dt=zeros(3); d7xBL_dt=zeros(3); d8xBL_dt=zeros(3);
 
@@ -446,19 +459,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     xH=zeros(3); dxH_dt=zeros(3); d2xH_dt=zeros(3); d3xH_dt=zeros(3); d4xH_dt=zeros(3);
     d5xH_dt=zeros(3); d6xH_dt=zeros(3); d7xH_dt=zeros(3); d8xH_dt=zeros(3);
 
-    # arrays for multipole moments
-    Mijk2_data = [Float64[] for i=1:3, j=1:3, k=1:3]
-    Mij2_data = [Float64[] for i=1:3, j=1:3]
-    Mijkl2_data = [Float64[] for i=1:3, j=1:3, k=1:3, l=1:3]
-    Sij1_data = [Float64[] for i=1:3, j=1:3]
-    Sijk1_data= [Float64[] for i=1:3, j=1:3, k=1:3]
-
-    # "temporary" mulitpole arrays which contain the multipole data for a given piecewise geodesic
-    Mij2_wf_temp = [Float64[] for i=1:3, j=1:3];
-    Mijk3_wf_temp = [Float64[] for i=1:3, j=1:3, k=1:3];
-    Mijkl4_wf_temp = [Float64[] for i=1:3, j=1:3, k=1:3, l=1:3];
-    Sij2_wf_temp = [Float64[] for i=1:3, j=1:3];
-    Sijk3_wf_temp = [Float64[] for i=1:3, j=1:3, k=1:3];
+    vH = zeros(3);
+    aH = zeros(3);
 
     # arrays for self-force computation
     Mij5 = zeros(3, 3)
@@ -469,11 +471,8 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     Mijk8 = zeros(3, 3, 3)
     Sij5 = zeros(3, 3)
     Sij6 = zeros(3, 3)
-    aSF_BL_temp = zeros(4)
-    aSF_H_temp = zeros(4)
-    xH_SF = zeros(3);
-    vH_SF = zeros(3);
-    aH_SF = zeros(3);
+    aSF_BL = zeros(4)
+    aSF_H = zeros(4)
 
     # compute apastron
     ra = p / (1 - e);
@@ -482,6 +481,20 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     EEi, LLi, QQi, CCi = ConstantsOfMotion.compute_ELC(a, p, e, θmin, sign_Lz)   
 
     # store orbital params in arrays
+    idx_save_2 = 1
+    t_Fluxes = zeros(save_every);
+    E_arr = zeros(save_every);
+    E_dot_arr = zeros(save_every);
+    L_arr = zeros(save_every); 
+    L_dot_arr = zeros(save_every);
+    C_arr = zeros(save_every);
+    C_dot_arr = zeros(save_every);
+    Q_arr = zeros(save_every);
+    Q_dot_arr = zeros(save_every);
+    p_arr = zeros(save_every);
+    e_arr = zeros(save_every);
+    θmin_arr = zeros(save_every);
+
     E_t = EEi; 
     dE_dt = 0.;
     L_t = LLi; 
@@ -495,109 +508,173 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     θmin_t = θmin;
 
     rplus = Kerr.KerrMetric.rplus(a); rminus = Kerr.KerrMetric.rminus(a);
+
     # initial condition for Kerr geodesic trajectory
     t0 = 0.0
-    geodesic_ics = @SArray [psi_0, chi_0, phi_0];
-
     rLSO = AnalyticInspiral.LSO_p(a)
 
-    use_custom_ics = true; use_specified_params = true;
-    save_at_trajectory = compute_SF / (nPointsGeodesic - 1); Δti=save_at_trajectory;    # initial time step for geodesic integration
+    # initialize ODE problem
+    E, L, Q, C, ra, p3, p4, zp, zm = BLTimeGeodesics.compute_ODE_params(a, p, e, θmin, sign_Lz);
 
-    geodesic_time_length = compute_SF;
-    num_points_geodesic = nPointsGeodesic;
+    params = @SArray [a, E, L, p, e, θmin, p3, p4, zp, zm];
+    ics = @SArray[psi_0, chi_0, phi_0];
 
-    # initialize fluxes to zero (serves as a flag in the function which evolves the constants of motion)
-    dE_dt = 0.0
-    dL_dt = 0.0
-    dQ_dt = 0.0
-    dC_dt = 0.0
+    # initial conditions for Kerr geodesic trajectory
+    tspan = (0.0, tInspiral);
 
-    while tInspiral > t0
+    prob = e == 0.0 ? ODEProblem(BLTimeGeodesics.HJ_Eqns_circular, ics, tspan, params) : ODEProblem(BLTimeGeodesics.HJ_Eqns, ics, tspan, params);
+
+    # times at which the integrator should be stopped (consists of times at which the self-force must be computed and times at which the solution must be saved)
+    times_SF = range(start = compute_SF, stop = tInspiral, step = compute_SF) |> collect;
+    times_WF = range(start = dt_save, stop = tInspiral, step = dt_save) |> collect;
+
+    # initialize integrator
+    # save_at_trajectory = compute_SF / (500 - 1); Δti=save_at_trajectory;
+    integrator = init(prob, AutoTsit5(RK4()), adaptive=true, reltol = reltol, abstol = abstol)
+
+    # save solution at time t = 0;
+    compute_waveform_moments!(integrator, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, q, Mij2_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, lmax_mass, lmax_current, ra, p3, p4, zp, zm, xBL, vBL, aBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ,d7x_dλ, d8x_dλ,xH, dxH_dt, d2xH_dt,d3xH_dt, d4xH_dt, d5xH_dt,d6xH_dt, d7xH_dt, d8xH_dt)
+    update_waveform_arrays!(idx_save_1, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, Mij2_data_wf_temp, Sij2_data_wf_temp, Mijk3_data_wf_temp, Sijk3_data_wf_temp, Mijkl4_data_wf_temp)
+    update_trajectory_arrays!(integrator, idx_save_1, time, r, theta, phi, gamma, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm, save_traj, save_gamma)
+    idx_save_1 += 1
+
+    # also save constants of motion
+    t_Fluxes[idx_save_2] = t0;
+    E_arr[idx_save_2] = E_t;
+    E_dot_arr[idx_save_2] = dE_dt;
+    L_arr[idx_save_2] = L_t; 
+    L_dot_arr[idx_save_2] = dL_dt;
+    C_arr[idx_save_2] = C_t;
+    C_dot_arr[idx_save_2] = dC_dt;
+    Q_arr[idx_save_2] = Q_t;
+    Q_dot_arr[idx_save_2] = dQ_dt;
+    p_arr[idx_save_2] = p_t;
+    e_arr[idx_save_2] = e_t;
+    θmin_arr[idx_save_2] = θmin_t;
+    idx_save_2 += 1
+
+    WF_step = false
+    SF_step = false
+
+    t0 = 0.0
+    while integrator.t < tInspiral
         print("Completion: $(round(100 * t0/tInspiral; digits=5))%   \r")
-        flush(stdout) 
-
-        ###### COMPUTE PIECEWISE GEODESIC ######
-        # compute roots of radial function R(r)
-        zm = cos(θmin_t)^2
-        zp = C_t / (a^2 * (1.0-E_t^2) * zm)    # Eq. E23
-        ra=p_t / (1.0 - e_t); rp=p_t / (1.0 + e_t);
-        A = 1.0 / (1.0 - E_t^2) - (ra + rp) / 2.0    # Eq. E20
-        B = a^2 * C_t / ((1.0 - E_t^2) * ra * rp)    # Eq. E21
-        r3 = A + sqrt(A^2 - B); r4 = A - sqrt(A^2 - B);    # Eq. E19
-        p3 = r3 * (1.0 - e_t); p4 = r4 * (1.0 + e_t)    # Above Eq. 96
-
-        # geodesic
-        tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi = BLTimeGeodesics.compute_kerr_geodesic(a, p_t, e_t, θmin_t, sign_Lz, num_points_geodesic, use_specified_params, geodesic_time_length, Δti, reltol, abstol;
-        ics=geodesic_ics, E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
-
-        tt = tt .+ t0   # tt from the above function call starts from zero
-
-        # check that geodesic output is as expected
-        if (length(tt) != num_points_geodesic) || !isapprox(tt[nPointsGeodesic], t0 + compute_SF)
-            println("Integration terminated at t = $(first(tt))")
-            println("total_num_points - len(sol) = $(num_points_geodesic-length(tt))")
-            println("tt[nPointsGeodesic] = $(tt[nPointsGeodesic])")
-            println("t0 + compute_SF = $(t0 + compute_SF)")
-            break
-        end
-
-        # extract initial conditions for next geodesic.
-        t0 = last(tt); geodesic_ics = @SArray [last(psi), last(chi), last(ϕϕ)];
+        flush(stdout)
         
-        # store physical trajectory — this function omits last point since this overlaps with the start of the next geodesic
-        AnalyticInspiral.save_traj!(file, nPointsGeodesic-1, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, save_traj, save_gamma);
-
-        ###### COMPUTE MULTIPOLE MOMENTS FOR WAVEFORMS ######
-        AnalyticMultipoleDerivs.AnalyticMultipoleDerivs_WF!(rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Mij2_data, Mijk3_wf_temp,
-        Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, a, q, E_t, L_t, C_t, lmax_mass, lmax_current);
-
-        # store multipole data for waveforms — note that we only save the independent components
-        AnalyticInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp, lmax_mass, lmax_current);
-
-
-        ###### COMPUTE MULTIPOLE MOMENTS FOR SELF FORCE ######
-        ### COMPUTE BL COORDINATE DERIVATIVES ###
-        xBL_SF = [last(rr), last(θθ), last(ϕϕ)];
-        vBL_SF = [last(r_dot), last(θ_dot), last(ϕ_dot)];
-        aBL_SF = [last(r_ddot), last(θ_ddot), last(ϕ_ddot)];
-
-        AnalyticCoordinateDerivs.ComputeDerivs!(xBL_SF, sign(vBL_SF[1]), sign(vBL_SF[2]), dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,
-        dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ, d7x_dλ, d8x_dλ, a, E_t, L_t, C_t);
-
-        # COMPUTE HARMONIC COORDINATE DERIVATIVES
-        HarmonicCoordDerivs.compute_harmonic_derivs!(xBL_SF, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,
-        xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, d5xH_dt, d6xH_dt, d7xH_dt, d8xH_dt, a);
-
-        # COMPUTE MULTIPOLE DERIVATIVES
-        AnalyticMultipoleDerivs.AnalyticMultipoleDerivs_SF!(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, d5xH_dt, d6xH_dt, d7xH_dt, d8xH_dt, q, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6, lmax_mass, lmax_current);
-
-   
-        ##### COMPUTE SELF-FORCE #####
-        HarmonicCoords.xBLtoH!(xH_SF, xBL_SF, a);
-        HarmonicCoords.vBLtoH!(vH_SF, xH_SF, vBL_SF, a); 
-        HarmonicCoords.aBLtoH!(aH_SF, xH_SF, vBL_SF, aBL_SF, a);
-        rH_SF = SelfAcceleration.norm_3d(xH_SF);
-        v_SF = SelfAcceleration.norm_3d(vH_SF);
-
-        SelfAcceleration.aRRα(aSF_H_temp, aSF_BL_temp, xH_SF, v_SF, vH_SF, xBL_SF, rH_SF, a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
-
-        # store self force values
-        if save_SF
-            AnalyticInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
+        if length(times_SF) == 0 && length(times_WF) == 0
+            break
+        elseif length(times_WF) == 0
+            tF = times_SF[1]
+            popfirst!(times_SF)
+            SF_step = true
+            WF_step = false
+        elseif length(times_SF) == 0
+            tF = times_WF[1]
+            popfirst!(times_WF)
+            WF_step = true
+            SF_step = false
+        elseif times_SF[1] < times_WF[1]
+            tF = times_SF[1]
+            popfirst!(times_SF)
+            SF_step = true
+            WF_step = false
+        else
+            tF = times_WF[1]
+            popfirst!(times_WF)
+            WF_step = true
+            SF_step = false
         end
 
-        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
-        Δt = last(tt) - tt[1]
-        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
+        time_step = tF - integrator.t
+        step!(integrator, time_step, true)
 
-        # save orbital constants and fluxes
-        AnalyticInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t, save_constants, save_fluxes);
+        if WF_step
+            if idx_save_1 == save_every + 1
+                AnalyticInspiral.save_traj!(file, save_every, time, r, theta, phi, gamma, save_traj, save_gamma)
+                AnalyticInspiral.save_moments!(file, save_every, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
+                idx_save_1 = 1
+            end
 
-        E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
-        # flush(file)
+            compute_waveform_moments!(integrator, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, q, Mij2_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, lmax_mass, lmax_current, ra, p3, p4, zp, zm, xBL, vBL, aBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ,d7x_dλ, d8x_dλ,xH, dxH_dt, d2xH_dt,d3xH_dt, d4xH_dt, d5xH_dt,d6xH_dt, d7xH_dt, d8xH_dt)
+            update_waveform_arrays!(idx_save_1, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, Mij2_data_wf_temp, Sij2_data_wf_temp, Mijk3_data_wf_temp, Sijk3_data_wf_temp, Mijkl4_data_wf_temp)
+            update_trajectory_arrays!(integrator, idx_save_1, time, r, theta, phi, gamma, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm, save_traj, save_gamma)
+            idx_save_1 += 1
+        else
+            tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, dt_dτ, psi, chi = compute_geodesic_arrays(integrator, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm)
+
+            ### COMPUTE BL COORDINATE DERIVATIVES ###
+            xBL[1] = rr; xBL[2] = θθ; xBL[3] = ϕϕ;
+            vBL[1] = r_dot; vBL[2] = θ_dot; vBL[3] = ϕ_dot;
+            aBL[1] = r_ddot; aBL[2] = θ_ddot; aBL[3] = ϕ_ddot;
+
+            AnalyticCoordinateDerivs.ComputeDerivs!(xBL, sign(vBL[1]), sign(vBL[2]), dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt, dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ, d7x_dλ, d8x_dλ, a, E_t, L_t, C_t);
+
+            # COMPUTE HARMONIC COORDINATE DERIVATIVES
+            HarmonicCoordDerivs.compute_harmonic_derivs!(xBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt, xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, d5xH_dt, d6xH_dt, d7xH_dt, d8xH_dt, a);
+
+            # COMPUTE MULTIPOLE DERIVATIVES
+            AnalyticMultipoleDerivs.AnalyticMultipoleDerivs_SF!(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, d5xH_dt, d6xH_dt, d7xH_dt, d8xH_dt, q, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6, lmax_mass, lmax_current);
+
+            ##### COMPUTE SELF-FORCE #####
+            HarmonicCoords.xBLtoH!(xH, xBL, a);
+            HarmonicCoords.vBLtoH!(vH, xH, vBL, a); 
+            HarmonicCoords.aBLtoH!(aH, xH, vBL, aBL, a);
+            rH = SelfAcceleration.norm_3d(xH);
+            v = SelfAcceleration.norm_3d(vH);
+
+            SelfAcceleration.aRRα(aSF_H, aSF_BL, xH, v, vH, xBL, rH, a, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6)
+
+            # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
+            dt_flux = tF - t0
+            E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(dt_flux, a, rr, θθ, ϕϕ, dt_dτ, r_dot, θ_dot, ϕ_dot, aSF_BL, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
+
+            E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
+            # flush(file)
+
+            # save constants of motion
+            t_Fluxes[idx_save_2] = tF;
+            E_arr[idx_save_2] = E_t;
+            E_dot_arr[idx_save_2] = dE_dt;
+            L_arr[idx_save_2] = L_t; 
+            L_dot_arr[idx_save_2] = dL_dt;
+            C_arr[idx_save_2] = C_t;
+            C_dot_arr[idx_save_2] = dC_dt;
+            Q_arr[idx_save_2] = Q_t;
+            Q_dot_arr[idx_save_2] = dQ_dt;
+            p_arr[idx_save_2] = p_t;
+            e_arr[idx_save_2] = e_t;
+            θmin_arr[idx_save_2] = θmin_t;
+            idx_save_2 += 1
+
+            # save constants and fluxes
+            if idx_save_2 == save_every + 1
+                AnalyticInspiral.save_constants!(file, save_every, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
+                idx_save_2 = 1
+            end
+
+            # update ODE params
+            zm = cos(θmin_t)^2
+            zp = C_t / (a^2 * (1.0-E_t^2) * zm)    # Eq. E23
+            ra=p_t / (1.0 - e_t); rp=p_t / (1.0 + e_t);
+            A = 1.0 / (1.0 - E_t^2) - (ra + rp) / 2.0    # Eq. E20
+            B = a^2 * C_t / ((1.0 - E_t^2) * ra * rp)    # Eq. E21
+            r3 = A + sqrt(A^2 - B); r4 = A - sqrt(A^2 - B);    # Eq. E19
+            p3 = r3 * (1.0 - e_t); p4 = r4 * (1.0 + e_t)    # Above Eq. 96
+            integrator.p = @SArray [a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm];
+            t0 = tF
+        end
     end
     print("Completion: 100%   \r")
+
+    # save remaining data
+    if idx_save_1 != 1
+        @views AnalyticInspiral.save_traj!(file, idx_save_1-1, time, r, theta, phi, gamma, save_traj, save_gamma)
+        @views AnalyticInspiral.save_moments!(file, idx_save_1-1, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
+    end
+
+    if idx_save_2 != 1
+        @views AnalyticInspiral.save_constants!(file, idx_save_2-1, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
+    end
 
     if JIT
         rm(sol_filename)
@@ -606,6 +683,96 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         println("File created: " * sol_filename)
     end
     close(file)
+end
+
+function compute_geodesic_arrays(integrator, a::Float64, E::Float64, L::Float64, p::Float64, e::Float64, θmin::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64)
+    # deconstruct solution
+    t = integrator.t;
+    psi = integrator.u[1];
+    chi = mod.(integrator.u[2], 2π);
+    ϕ = integrator.u[3];
+
+    # compute time derivatives
+    psi_dot = BLTimeGeodesics.psi_dot(psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    chi_dot = BLTimeGeodesics.chi_dot(psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    ϕ_dot = BLTimeGeodesics.phi_dot(psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+
+    # compute BL coordinates t, r, θ and their time derivatives
+    r = BLTimeGeodesics.r(psi, p, e)
+    θ = acos((π/2<chi<1.5π) ? -sqrt(BLTimeGeodesics.z(chi, θmin)) : sqrt(BLTimeGeodesics.z(chi, θmin)))
+    r_dot = BLTimeGeodesics.dr_dt(psi_dot, psi, p, e);
+    θ_dot = BLTimeGeodesics.dθ_dt(chi_dot, chi, θ, θmin);
+    v = [r_dot, θ_dot, ϕ_dot];
+    dt_dτ = BLTimeGeodesics.Γ(r, θ, ϕ, v, a)
+
+    # substitute solution back into geodesic equation to find second derivatives of BL coordinates (wrt t)
+    r_ddot = BLTimeGeodesics.dr2_dt2(r, θ, ϕ, r_dot, θ_dot, ϕ_dot, a)
+    θ_ddot = BLTimeGeodesics.dθ2_dt2(r, θ, ϕ, r_dot, θ_dot, ϕ_dot, a)
+    ϕ_ddot = BLTimeGeodesics.dϕ2_dt2(r, θ, ϕ, r_dot, θ_dot, ϕ_dot, a)
+
+    return t, r, θ, ϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, dt_dτ, psi, chi
+end
+
+
+function compute_waveform_moments!(integrator, a::Float64, E::Float64, L::Float64, Q::Float64, C::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, Mij2_data_wf_temp::AbstractArray, Mijk3_data_wf_temp::AbstractArray, Mijkl4_data_wf_temp::AbstractArray, Sij2_data_wf_temp::AbstractArray, Sijk3_data_wf_temp::AbstractArray, lmax_mass::Int64, lmax_current::Int64, ra::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64, xBL::AbstractVector{Float64}, vBL::AbstractVector{Float64}, aBL::AbstractVector{Float64}, dxBL_dt::AbstractVector{Float64}, d2xBL_dt::AbstractVector{Float64}, d3xBL_dt::AbstractVector{Float64}, d4xBL_dt::AbstractVector{Float64}, d5xBL_dt::AbstractVector{Float64}, d6xBL_dt::AbstractVector{Float64}, d7xBL_dt::AbstractVector{Float64}, d8xBL_dt::AbstractVector{Float64},dx_dλ::AbstractVector{Float64}, d2x_dλ::AbstractVector{Float64}, d3x_dλ::AbstractVector{Float64}, d4x_dλ::AbstractVector{Float64}, d5x_dλ::AbstractVector{Float64}, d6x_dλ::AbstractVector{Float64},d7x_dλ::AbstractVector{Float64}, d8x_dλ::AbstractVector{Float64},xH::AbstractVector{Float64}, dxH_dt::AbstractVector{Float64}, d2xH_dt::AbstractVector{Float64},d3xH_dt::AbstractVector{Float64}, d4xH_dt::AbstractVector{Float64}, d5xH_dt::AbstractVector{Float64},d6xH_dt::AbstractVector{Float64}, d7xH_dt::AbstractVector{Float64}, d8xH_dt::AbstractVector{Float64})
+
+    t, r, θ, ϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, dt_dτ, psi, chi = compute_geodesic_arrays(integrator, a, E, L, p, e, θmin, p3, p4, zp, zm)
+
+    AnalyticMultipoleDerivs.AnalyticMultipoleDerivs_WF!(r, θ, ϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Mij2_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, a, q, E, L, C, lmax_mass, lmax_current, xBL, vBL, aBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ,d7x_dλ, d8x_dλ,xH, dxH_dt, d2xH_dt,d3xH_dt, d4xH_dt, d5xH_dt,d6xH_dt, d7xH_dt, d8xH_dt)  
+end
+
+
+function update_waveform_arrays!(idx_save::Int64, Mij2_data::AbstractArray, Sij2_data::AbstractArray, Mijk3_data::AbstractArray, Sijk3_data::AbstractArray, Mijkl4_data::AbstractArray, Mij2_data_wf_temp::AbstractArray, Sij2_data_wf_temp::AbstractArray, Mijk3_data_wf_temp::AbstractArray, Sijk3_data_wf_temp::AbstractArray, Mijkl4_data_wf_temp::AbstractArray)
+    @inbounds for i = 1:3, j = 1:3
+        Mij2_data[i, j][idx_save] = Mij2_data_wf_temp[i, j];
+        Sij2_data[i, j][idx_save] = Sij2_data_wf_temp[i, j];
+        @inbounds for k = 1:3
+            Mijk3_data[i, j, k][idx_save] = Mijk3_data_wf_temp[i, j, k];
+            Sijk3_data[i, j, k][idx_save] = Sijk3_data_wf_temp[i, j, k];
+            @inbounds for l = 1:3
+                Mijkl4_data[i, j, k, l][idx_save] = Mijkl4_data_wf_temp[i, j, k, l];
+            end
+        end
+    end
+end
+
+function update_trajectory_arrays!(integrator, idx_save::Int64, time::Vector{Float64}, r::Vector{Float64}, theta::Vector{Float64}, phi::Vector{Float64}, gamma::Vector{Float64}, a::Float64, E::Float64, L::Float64, p::Float64, e::Float64, θmin::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64, save_traj::Bool, save_gamma::Bool)
+    t = integrator.t;
+    psi = integrator.u[1];
+    chi = mod.(integrator.u[2], 2π);
+    ϕ = integrator.u[3];
+
+    time[idx_save] = t
+
+    if save_traj || save_gamma
+        tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, dt_dτ, psi, chi = compute_geodesic_arrays(integrator, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    end
+
+    if save_traj
+        r[idx_save] = rr
+        theta[idx_save] = θθ
+        phi[idx_save] = ϕϕ
+    end
+
+    if save_gamma
+        gamma[idx_save] = dt_dτ
+    end
+end
+
+
+# evolve inspiral along one piecewise geodesic
+function evolve_inspiral!(integrator, h::Number, tt::Vector{<:Number}, dt_dτ::Vector{<:Number}, rr::Vector{<:Number}, r_dot::Vector{<:Number}, r_ddot::Vector{<:Number}, θθ::Vector{<:Number}, θ_dot::Vector{<:Number}, θ_ddot::Vector{<:Number}, 
+    ϕϕ::Vector{<:Number}, ϕ_dot::Vector{<:Number}, ϕ_ddot::Vector{<:Number}, dt_dλλ::Vector{<:Number})
+    a, E, L, p, e, θmin, p3, p4, zp, zm = integrator.p
+    track_num_steps = 0
+    @inbounds for i = 1:length(tt)
+        track_num_steps += 1
+        compute_BL_coords_traj!(integrator, i, λλ, tt, dt_dτ, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, dt_dλλ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+        step!(integrator, h, true)
+    end
+    if track_num_steps != length(λλ)
+        throw(ArgumentError("Length of λλ array does not match the number ($(i)) of steps taken"))
+    end
 end
 
 function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, lmax_mass::Int64, lmax_current::Int64, data_path::String)
@@ -795,7 +962,7 @@ function compute_inspiral(tInspiral::Float64, compute_SF::Float64, nPointsGeodes
     t0 = 0.0
     t_Fluxes = ones(1) * t0
     λ0 = 0.0
-    geodesic_ics = MinoTimeGeodesics.Mino_ics(t0, ra, p, e);
+    geodesic_icsBL.Mino_ics(t0, ra, p, e);
 
     rLSO = AnalyticInspiral.LSO_p(a)
 
@@ -825,7 +992,7 @@ function compute_inspiral(tInspiral::Float64, compute_SF::Float64, nPointsGeodes
         p3 = r3 * (1.0 - e_t); p4 = r4 * (1.0 + e_t)    # Above Eq. 96
 
         # geodesic
-        λλ, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi, dt_dλλ = MinoTimeGeodesics.compute_kerr_geodesic(a, p_t, e_t, θmin_t, num_points_geodesic, use_custom_ics,
+        λλ, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi, dt_dλλBL.compute_kerr_geodesic(a, p_t, e_t, θmin_t, num_points_geodesic, use_custom_ics,
         use_specified_params, geodesic_time_length, Δλi, reltol, abstol; ics=geodesic_ics, E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
         
         λλ = λλ .+ λ0   # λλ from the above function call starts from zero 

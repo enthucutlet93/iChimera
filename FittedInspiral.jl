@@ -5,30 +5,29 @@
     
     Schematically, our implementation of the Chimera is as follows (noting that Eq. XX refers to Ref. [1]):
 
-    (1) Numerically evolve the geodesic equation with the initial constants of motion and initial conditions for a time ΔT. (Actually, the geodesic is evolved for one additional time step, which is used as the initial
-        condition for the evolution of the subsequent geodesic, and is not used in any computations done with the current piecewise geodesic. Note that we do not yet consider conservative effects, which would introduce a correction when "jumping" between
-        geodesics in the method of osculating orbits.)
-    
-    (2) Compute the multipole moment derivatives required for waveform waveform generation (Eqs. 48-49, 85-86). These are computed at every point on each piecewise geodesic. They are not used to evolve the inspiral, but are saved for waveform computation outside
+    (1) Numerically evolve the geodesic equation with the initial constants of motion and initial conditions for a time ΔT. (Note that we do not yet consider conservative effects.)
+    (2) Compute the multipole moment derivatives required for waveform waveform generation (Eqs. 48-49, 85-86). These are only computed at user specified intervals of coordinate time. They are not used to evolve the inspiral, but are saved for waveform computation outside
         these master functions.
 
     (3) Compute the multipole moment derivatives required for the self-force computation (Eqs. 48-49). These are computed at the end point of each piecewise geodesic.
     
     (4) Compute the self-acceleration and use this to update the constants of motion.
     
-    (5) Evolve the next geodesic using the intial conditions as taken from the additional time step in (1) with the updated constants of motion. Repeat this process until the inspiral has been evolved for the desired amount of time.
+    (5) Evolve the next geodesic using the final point on the previous geodesic as the intial point for the next geodesic, but with the updated constants of motion. Repeat this process until the inspiral has been evolved for the desired amount of time.
 
-    Steps (1-5) are schematic, and, in practice, we have several functions which carry out steps (2-3) in different ways:
+    Steps (1-5) are schematic, and, in practice, we adopt two approaches to carry out steps (2-3).
 
-    (i) Estimate all the multipole moment derivatves using a least-squares fitting algorithm. In particular, the multipole moments are orbital functionals and thus possess a Fourier series expansion in terms of the fundamental frequencies of motion (e.g., see Ref. [1] and
+    (i) This approach uses a combination of "Fourier fits" and finite difference formulae to estimate the multipole moment derivatives.
+    
+        Fourier fits: Yhe multipole moments are orbital functionals and thus possess a Fourier series expansion in terms of the fundamental frequencies of motion (e.g., see Ref. [1] and
         arXiv:astro-ph/0308479). We can compute time series data (from analytic expressions) of the first and second derivatives of the mass and current multipole moments, fit these to their fourier series expansion for the coefficients, and take analytic time derivatives
         of the (truncated) Fourier series to approximate the high order derivatives (see Eqs. 98-99).
         
         For the waveform moments, this is done by taking the physical trajectory from a given piecewise geodesic and using the corresponding time series data in the fit. This physical trajectory is in contrast to a "fictitous" trajectory we use to compute the multipole
-        moments for the self-force computation. We wish to compute the self force at the endpoint of each piecewise geodesic. We could do this by using the fit carried out for the waveform moments, but this would place the point of interest at the final
-        point in the time series, which is where the fit performs the worst (i.e., at the edges). So, to get a better fit, we artifically place the point of interest at the center of a fictitous geodesic trajectory and then perform the fit using this time series data.
+        moments for the self-force computation. We wish to compute the self force at the endpoint of each piecewise geodesic. We could do this by fitting to the physical trajectory, but this would place the point of interest at the final
+        point in the time series, which is where the fit performs the worst (i.e., at the edges of the time series). So, to get a better fit, we artifically place the point of interest at the center of a fictitous geodesic trajectory and then perform the fit using this time series data.
         This ficticious trajectory is constructed by taking the point of interest and evolving the geodesic equation into the past and future of this point to obtain a time series with the point of interest at its center (this approach was taken by the authors of Ref. [1] in their
-        original implementation). This fictitious trajectory is only used to compute the self-force and is discarded thereafter. Once these steps have been carried out to approximate the relevant multipole derivatives at the point of interest, one can then compute the self-force
+        numerical implementation). This fictitious trajectory is only used to compute the self-force and is discarded thereafter. Once these steps have been carried out to approximate the relevant multipole derivatives at the point of interest, one can then compute the self-force
         there, update the constants of motion and continue in the inspiral evolution.
 
         We provide two options for carrying out this fitting procedure. The first uses GSL's multilinear fitting algorithm to fit the data to its fourier series expansion. This method is slow, and gets increasingly slow as one includes more harmonic
@@ -36,26 +35,21 @@
         10^{5} (which is consistent with that found in [1]). The second method for implementing these fits useσ Julia's base least squares algorithm, which we have generally found to be faster, and which can be tuned to give more accurate fits. For test orbital
         functionals, we found an accuracy in the sixth time derivative of 1 part in 10^{7} for N=3 harmonics and N=200 points in the time series.
 
-        In practice, both of these approaches are slow (in relative terms). We outline two faster methods below, with option (iii) being the one we recommend using.
-    
-    (ii) Estimate all the multipole moment derivatives using finite difference formulae. Finite differences as implemented in coordinate time leads to catastrophic cancellations in the high order derivative estimation (this was also reported in Ref. [1]).
-         However, when applying finite difference formulae in Mino time, we have not observed the same numerical instabilities in the limited testing we have done so far. We are still to carry out convergence tests, but we do expect that this approach would
-         still require too much fine tuning to be reliable for inspirals across the entire parameter space.
-    
-    (iii) Estimate only the multipole moment derivatives required for the self-force computation using a least-squares fitting algorithm, and estimate those required for the waveform using finite differences. To compute the radiation reaction fluxes, we must
-          numerically take up to six more time derivatives of time series data of the multipole moments. However, to generate the waveform, we need only take up to two more time derivatives of the multipole moments. Thus, we can reliably use finite differences
-          to estimate these derivatives, while using the more robust fourier fitting to compute the fluxes. This leads to a significant speed up because, in total, there are 22 independent components of the multipole moments which must be computed for the self-force,
-          while there are 41 components which must be computed for the waveform. Thus, by using finite differences for the waveform moments, we can reduce the number of fits we must perform by a factor of ~2/3 (since we compute the fits for the waveform moments
-          and the self-force moments separately). This approach is close in efficiency to (ii), but is more reliable because we still use the robust fourier fitting algorithm to compute the multipole derivatives for the fluxes, while the finite difference formulae
-          for the waveform moments are accurate within O(h^{5}) and are less prone to numerical instabilities than (ii) is because (a) we no longer use formaulae with h^{3} up to h^{6} in the denominator (where, here, h is typically taken to be ~1e-3), and (b) we are
-          are estimating lower-order derivatives, which are of a higher order of magnitude, allowing us to use larger step sizes (for a fixed relative error) and thus avoid the effects of catastrophic cancellation. For example, estimating a derivative of the order 10^{-10} requires a smaller
-          step size for a fixed relative error. For the same relative error, a larger absolute error is acceptable for estimating a derivative of the order 10^{-5}, thus allowing a large step size.
+        Finite differences: Finite differences as implemented in coordinate time leads to catastrophic cancellations in the high order derivative estimation (this was also reported in Ref. [1]).
+        However, when applying finite difference formulae in Mino time, we have not observed the same numerical instabilities in the testing we have done so far.
+        
+        Our first numerical algorithm consists of the following: estimate only the multipole moment derivatives required for the self-force computation using a least-squares fitting algorithm, and estimate those required for the waveform using finite differences. To compute the radiation reaction fluxes, we must
+        numerically take up to six more time derivatives of time series data of the multipole moments. However, to generate the waveform, we need only take up to two more time derivatives of the multipole moments. Thus, we can reliably use finite differences
+        to estimate these derivatives, while using the more robust fourier fitting to compute the fluxes. This leads to a significant speed up because, in total, there are 22 independent components of the multipole moments which must be computed for the self-force,
+        while there are 41 components which must be computed for the waveform. Thus, by using finite differences for the waveform moments, we can reduce the number of fits we must perform by a factor of ~2/3 (since we compute the fits for the waveform moments
+        and the self-force moments separately).
 
-    Using approach (iii), we expect a year-long EMRI to take ~10 hours to compute. This will be ~2x faster using approach (ii), but may be accompanied by significant accumulation of numerical errors (or quantum fluctuations, depending on one's perspective). Approach (i) will take infinte time.
+    (ii) Our second approach is to compute all the derivatives analytically by differentiating the first-order geodesic equations of motions in order to find expressions for high-order derivatives of the Boyer-Lindquist coordinates. We then convert these to derivatives of the harmonic coordinates by differentiating the transformations equations. With these, we can then evaluate the various high-order derivatives of the multipole moments.
+
+    Approach (i) is implemented in this module and approach (ii) is implemented in the "AnalyticInspiral.jl" file.
 =#
 
 module FittedInspiral
-
 using LinearAlgebra
 using Combinatorics
 using StaticArrays
@@ -63,6 +57,7 @@ using HDF5
 using DifferentialEquations
 using JLD2
 using Printf
+using SciMLBase
 import ..HDF5Helper: create_file_group!, create_dataset!, append_data!
 using ..SymmetricTensors
 using ..Kerr
@@ -83,7 +78,7 @@ Z_2(a::Float64) = sqrt(3 * a^2 + Z_1(a)^2)
 LSO_r(a::Float64) = (3 + Z_2(a) - sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a))))   # retrograde LSO
 LSO_p(a::Float64) = (3 + Z_2(a) + sqrt((3 - Z_1(a)) * (3 + Z_1(a) * 2 * Z_2(a))))   # prograde LSO
 
-function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_SF::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
+function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
     create_dataset!(file, "", "t", Float64, chunk_size);
     create_dataset!(file, "", "lambda", Float64, chunk_size);
 
@@ -91,16 +86,9 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
     create_file_group!(file, traj_group_name);
     
     if save_traj
-        create_dataset!(file, traj_group_name, "dt_dlambda", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "r", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "theta", Float64, chunk_size);
         create_dataset!(file, traj_group_name, "phi", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "r_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "theta_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "phi_dot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "r_ddot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "theta_ddot", Float64, chunk_size);
-        create_dataset!(file, traj_group_name, "phi_ddot", Float64, chunk_size);
     end
 
     if save_gamma
@@ -110,39 +98,39 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
     constants_group_name = "ConstantsOfMotion"
     create_file_group!(file, constants_group_name);
     if save_constants || save_fluxes
-        create_dataset!(file, constants_group_name, "t", Float64, 1);
+        create_dataset!(file, constants_group_name, "t", Float64, chunk_size);
     end
 
     if save_constants
-        create_dataset!(file, constants_group_name, "Energy", Float64, 1);
-        create_dataset!(file, constants_group_name, "AngularMomentum", Float64, 1);
-        create_dataset!(file, constants_group_name, "CarterConstant", Float64, 1);
-        create_dataset!(file, constants_group_name, "AltCarterConstant", Float64, 1);
-        create_dataset!(file, constants_group_name, "p", Float64, 1);
-        create_dataset!(file, constants_group_name, "eccentricity", Float64, 1);
-        create_dataset!(file, constants_group_name, "theta_min", Float64, 1);
+        create_dataset!(file, constants_group_name, "Energy", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "AngularMomentum", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "CarterConstant", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "AltCarterConstant", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "p", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "eccentricity", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "theta_min", Float64, chunk_size);
     end
 
     if save_fluxes
-        create_dataset!(file, constants_group_name, "Edot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Ldot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Qdot", Float64, 1);
-        create_dataset!(file, constants_group_name, "Cdot", Float64, 1);
+        create_dataset!(file, constants_group_name, "Edot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Ldot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Qdot", Float64, chunk_size);
+        create_dataset!(file, constants_group_name, "Cdot", Float64, chunk_size);
     end
 
 
-    SF_group_name = "SelfForce"
-    create_file_group!(file, SF_group_name);
-    if save_SF
-        create_dataset!(file, SF_group_name, "self_acc_BL_t", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_r", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_θ", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_BL_ϕ", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_t", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_x", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_y", Float64, 1);
-        create_dataset!(file, SF_group_name, "self_acc_Harm_z", Float64, 1);
-    end
+    # SF_group_name = "SelfForce"
+    # create_file_group!(file, SF_group_name);
+    # if save_SF
+    #     create_dataset!(file, SF_group_name, "self_acc_BL_t", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_BL_r", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_BL_θ", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_BL_ϕ", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_Harm_t", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_Harm_x", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_Harm_y", Float64, 1);
+    #     create_dataset!(file, SF_group_name, "self_acc_Harm_z", Float64, 1);
+    # end
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
     wave_group_name = "WaveformMoments"
@@ -185,8 +173,7 @@ function initialize_solution_file!(file::HDF5.File, chunk_size::Int64, lmax_mass
     return file
 end
 
-
-function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dr_dt::Vector{Float64}, dθ_dt::Vector{Float64}, dϕ_dt::Vector{Float64}, d2r_dt2::Vector{Float64}, d2θ_dt2::Vector{Float64}, d2ϕ_dt2::Vector{Float64}, dt_dτ::Vector{Float64}, λ::Vector{Float64}, dt_dλ::Vector{Float64}, save_traj::Bool, save_gamma::Bool)
+@views function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, λ::Vector{Float64}, r::Vector{Float64}, θ::Vector{Float64}, ϕ::Vector{Float64}, dt_dτ::Vector{Float64}, save_traj::Bool, save_gamma::Bool)
     append_data!(file, "", "t", t[1:chunk_size], chunk_size);
     append_data!(file, "", "lambda", λ[1:chunk_size], chunk_size);
 
@@ -196,13 +183,6 @@ function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::V
         append_data!(file, traj_group_name, "r", r[1:chunk_size], chunk_size);
         append_data!(file, traj_group_name, "theta", θ[1:chunk_size], chunk_size);
         append_data!(file, traj_group_name, "phi", ϕ[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "r_dot", dr_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "theta_dot", dθ_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "phi_dot", dϕ_dt[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "r_ddot", d2r_dt2[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "theta_ddot", d2θ_dt2[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "phi_ddot", d2ϕ_dt2[1:chunk_size], chunk_size);
-        append_data!(file, traj_group_name, "dt_dlambda", dt_dλ[1:chunk_size], chunk_size);
     end
 
     if save_gamma
@@ -210,7 +190,7 @@ function save_traj!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, r::V
     end
 end
 
-function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray, lmax_mass::Int64, lmax_current::Int64)
+@views function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, Sij2::AbstractArray, Mijk3::AbstractArray, Sijk3::AbstractArray, Mijkl4::AbstractArray, lmax_mass::Int64, lmax_current::Int64)
 
     ## INDEPENDENT WAVEFORM MOMENT COMPONENTS ##
     wave_group_name = "WaveformMoments"
@@ -250,27 +230,27 @@ function save_moments!(file::HDF5.File, chunk_size::Int64, Mij2::AbstractArray, 
     end
 end
 
-function save_constants!(file::HDF5.File, t::Float64, E::Float64, dE_dt::Float64, L::Float64, dL_dt::Float64, Q::Float64, dQ_dt::Float64, C::Float64, dC_dt::Float64, p::Float64, e::Float64, θmin::Float64, save_constants::Bool, save_fluxes::Bool)
+@views function save_constants!(file::HDF5.File, chunk_size::Int64, t::Vector{Float64}, E::Vector{Float64}, dE_dt::Vector{Float64}, L::Vector{Float64}, dL_dt::Vector{Float64}, Q::Vector{Float64}, dQ_dt::Vector{Float64}, C::Vector{Float64}, dC_dt::Vector{Float64}, p::Vector{Float64}, e::Vector{Float64}, θmin::Vector{Float64}, save_constants::Bool, save_fluxes::Bool)
     constants_group_name = "ConstantsOfMotion"
     if save_constants || save_fluxes
-        append_data!(file, constants_group_name, "t", t);
+        append_data!(file, constants_group_name, "t", t[1:chunk_size], chunk_size);
     end
 
     if save_constants
-        append_data!(file, constants_group_name, "Energy", E);
-        append_data!(file, constants_group_name, "AngularMomentum", L);
-        append_data!(file, constants_group_name, "CarterConstant", C);
-        append_data!(file, constants_group_name, "AltCarterConstant", Q);
-        append_data!(file, constants_group_name, "p", p);
-        append_data!(file, constants_group_name, "eccentricity", e);
-        append_data!(file, constants_group_name, "theta_min", θmin);
+        append_data!(file, constants_group_name, "Energy", E[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "AngularMomentum", L[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "CarterConstant", C[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "AltCarterConstant", Q[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "p", p[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "eccentricity", e[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "theta_min", θmin[1:chunk_size], chunk_size);
     end
 
     if save_fluxes
-        append_data!(file, constants_group_name, "Edot", dE_dt);
-        append_data!(file, constants_group_name, "Ldot", dL_dt);
-        append_data!(file, constants_group_name, "Qdot", dQ_dt);
-        append_data!(file, constants_group_name, "Cdot", dC_dt);
+        append_data!(file, constants_group_name, "Edot", dE_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Ldot", dL_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Qdot", dQ_dt[1:chunk_size], chunk_size);
+        append_data!(file, constants_group_name, "Cdot", dC_dt[1:chunk_size], chunk_size);
     end
 end
 
@@ -427,16 +407,16 @@ function load_trajectory(sol_filename::String)
     r = h5f["Trajectory/r"][:]
     θ = h5f["Trajectory/theta"][:]
     ϕ = h5f["Trajectory/phi"][:]
-    dr_dt = h5f["Trajectory/r_dot"][:]
-    dθ_dt = h5f["Trajectory/theta_dot"][:]
-    dϕ_dt = h5f["Trajectory/phi_dot"][:]
-    d2r_dt2 = h5f["Trajectory/r_ddot"][:]
-    d2θ_dt2 = h5f["Trajectory/theta_ddot"][:]
-    d2ϕ_dt2 = h5f["Trajectory/phi_ddot"][:]
+    # dr_dt = h5f["Trajectory/r_dot"][:]
+    # dθ_dt = h5f["Trajectory/theta_dot"][:]
+    # dϕ_dt = h5f["Trajectory/phi_dot"][:]
+    # d2r_dt2 = h5f["Trajectory/r_ddot"][:]
+    # d2θ_dt2 = h5f["Trajectory/theta_ddot"][:]
+    # d2ϕ_dt2 = h5f["Trajectory/phi_ddot"][:]
     # dt_dτ = h5f["Trajectory/Gamma"][:]
-    dt_dλ = h5f["Trajectory/dt_dlambda"][:]
+    # dt_dλ = h5f["Trajectory/dt_dlambda"][:]
     close(h5f)
-    return λ, t, r, θ, ϕ, dr_dt, dθ_dt, dϕ_dt, d2r_dt2, d2θ_dt2, d2ϕ_dt2, dt_dλ
+    return λ, t, r, θ, ϕ
 end
 
 function load_constants_of_motion(sol_filename::String)
@@ -484,22 +464,23 @@ Evolve inspiral with with Mino time parameterization and estimating the high ord
 - `phi_0::Float64`: initial azimuthal angle.
 - `fit::String`: type of fit to perform. Options are "GSL" or "Julia" to use Julia's GSL wrapper for a multilinear fit, or to use Julia's base least squares solver.
 - `nHarm::Int64`: number of radial harmonics to include in the fit (see `FourierFitGSL.jl` or `FourierFitJuliaBase.jl`).
-- `use_FDM::Bool`: whether to use finite difference formulae to compute the derivatives of the multipole moments required for the waveform.
 - `reltol`: relative tolerance for ODE solver.
 - `abstol`: absolute tolerance for ODE solver.
 - `h::Float64`: if use_FDM=true, then h is the step size for the ODE solver (and one does not specify nPointsGeodesic).
 - `nPointsGeodesic::Int64`: if use_FDM=false, this sets the number of points in the geodesic.
 - `JIT::Bool`: dummy run to JIT compile function.
-- `mass_quad::Bool`: include only mass quadrupole in inspiral evolution / waveform computation.
 - `data_path::String`: path to save data.
-
-# Notes
-- We provide the option to use finite differences in Mino time to compute the derivatives of the multipole moments required for the waveform (while the derivatives of the moments for computing the fluxes is done using the more robust method of Fourier
-fitting). In constructing waveforms, one needs lower order derivatives of the respective multipole moments, meaning that the waveform can be more accurately constructed from FDM than the self-acceleration can (since this requires taking up to six derivatives
-compared to only up to two for the waveforms). Using this hybrid approach allows one to significantly speed up the inspiral evolution.
+- `lmax_mass::Int64`: maximum mass-type multipole moment l mode to include in the flux and waveform computation with 2 ≤ lmax ≤ 4
+- `lmax_current::Int64` maximum current-type multipole moment l mode to include in the flux and waveform computation with 1 ≤ lmax ≤ 3 (lmax = 1 excludes any current-type moment and only up to l=3 included at this time)
+- `save_traj::Bool`: whether to save the trajectory data.
+- `save_constants::Bool`: whether to save the constants of motion.
+- `save_fluxes::Bool`: whether to save the fluxes.
+- `save_gamma::Bool`: whether to save the Lorentz factor.
+- `dt_save::Float64`: time interval between saving trajectory data.
+- `save_every::Int64`: number of points in each chunk of data when saving to file.
 """
 
-function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nPointsFit::Int64, nHarm::Int64, fit_time_range_factor::Float64, compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/", JIT::Bool=false, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_SF::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool)
+function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nPointsFit::Int64, nHarm::Int64, fit_time_range_factor::Float64, compute_SF::Float64, tInspiral::Float64, use_FDM::Bool, fit::String, reltol::Float64=1e-14, abstol::Float64=1e-14; h::Float64 = 0.001, nPointsGeodesic::Int64 = 500, data_path::String="Data/", JIT::Bool=false, lmax_mass::Int64, lmax_current::Int64, save_traj::Bool, save_constants::Bool, save_fluxes::Bool, save_gamma::Bool, dt_save::Float64, save_every::Int64=500)
     # println("Line 503")
     if iseven(nPointsFit)
         throw(DomainError(nPointsFit, "nPointsFit must be odd"))
@@ -526,32 +507,39 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     file = h5open(sol_filename, "w")
 
     # second argument is chunk_size. Since each successive geodesic piece overlap at the end of the first and bgeinning of the second, we must manually save this point only once to avoid repeats in the data 
-    FittedInspiral.initialize_solution_file!(file, nPointsGeodesic-1, lmax_mass, lmax_current, save_traj, save_SF, save_constants, save_fluxes, save_gamma)
+    FittedInspiral.initialize_solution_file!(file, save_every, lmax_mass, lmax_current, save_traj, save_constants, save_fluxes, save_gamma)
 
-    # initialize data arrays
-    xBL_fit = [zeros(3) for i in 1:nPointsFit]; xBL_wf = [zeros(3) for i in 1:nPointsGeodesic];
-    vBL_fit = [zeros(3) for i in 1:nPointsFit]; vBL_wf = [zeros(3) for i in 1:nPointsGeodesic];
-    aBL_fit = [zeros(3) for i in 1:nPointsFit]; aBL_wf = [zeros(3) for i in 1:nPointsGeodesic];
-    xH_fit = [zeros(3) for i in 1:nPointsFit];  xH_wf = [zeros(3) for i in 1:nPointsGeodesic];
-    vH_fit = [zeros(3) for i in 1:nPointsFit];  vH_wf = [zeros(3) for i in 1:nPointsGeodesic];
-    v_fit = zeros(nPointsFit);   v_wf = zeros(nPointsGeodesic);
-    rH_fit = zeros(nPointsFit);  rH_wf = zeros(nPointsGeodesic);
-    aH_fit = [zeros(3) for i in 1:nPointsFit];  aH_wf = [zeros(3) for i in 1:nPointsGeodesic];
+    # initialize data arrays for trajectory and multipole moments which will be used for post-processing
+    idx_save_1 = 1;
+    t_save = dt_save
+    lambda = zeros(save_every)
+    time = zeros(save_every)
+    r = zeros(save_every)
+    theta = zeros(save_every)
+    phi = zeros(save_every)
+    gamma = zeros(save_every)
+    Mij2_data = [zeros(save_every) for i=1:3, j=1:3]
+    Sij2_data = [zeros(save_every) for i=1:3, j=1:3];
+    Mijk3_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3];
+    Sijk3_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3];
+    Mijkl4_data = [zeros(save_every) for i=1:3, j=1:3, k=1:3, l=1:3];
 
-    # arrays for multipole moments
-    Mijk2_data = [Float64[] for i=1:3, j=1:3, k=1:3]
-    Mij2_data = [Float64[] for i=1:3, j=1:3]
-    Mijkl2_data = [Float64[] for i=1:3, j=1:3, k=1:3, l=1:3]
-    Sij1_data = [Float64[] for i=1:3, j=1:3]
-    Sijk1_data= [Float64[] for i=1:3, j=1:3, k=1:3]
-
-    # "temporary" mulitpole arrays which contain the multipole data for a given piecewise geodesic
-    Mijk3_wf_temp = [zeros(nPointsGeodesic) for i=1:3, j=1:3, k=1:3];
-    Mijkl4_wf_temp = [zeros(nPointsGeodesic) for i=1:3, j=1:3, k=1:3, l=1:3];
-    Sij2_wf_temp = [zeros(nPointsGeodesic) for i=1:3, j=1:3];
-    Sijk3_wf_temp = [zeros(nPointsGeodesic) for i=1:3, j=1:3, k=1:3];
+    # mulitpole arrays used for waveform computation
+    wf_geodesic_num_points = 11
+    Mij2_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3]
+    Mijk2_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3]
+    Mijkl2_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3, l=1:3]
+    Sij1_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3]
+    Sijk1_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3]
+    Mijk3_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3];
+    Mijkl4_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3, l=1:3];
+    Sij2_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3];
+    Sijk3_data_wf_temp = [zeros(wf_geodesic_num_points) for i=1:3, j=1:3, k=1:3];
 
     # arrays for self-force computation
+    Mijk2_data_SF= [zeros(nPointsFit) for i=1:3, j=1:3, k=1:3]
+    Mij2_data_SF= [zeros(nPointsFit) for i=1:3, j=1:3]
+    Sij1_data_SF= [zeros(nPointsFit) for i=1:3, j=1:3]
     Mij5 = zeros(3, 3)
     Mij6 = zeros(3, 3)
     Mij7 = zeros(3, 3)
@@ -562,6 +550,16 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     Sij6 = zeros(3, 3)
     aSF_BL_temp = zeros(4)
     aSF_H_temp = zeros(4)
+
+    # data arrays for fitting
+    xBL_fit = [zeros(3) for i in 1:nPointsFit]; xBL_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
+    vBL_fit = [zeros(3) for i in 1:nPointsFit]; vBL_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
+    aBL_fit = [zeros(3) for i in 1:nPointsFit]; aBL_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
+    xH_fit = [zeros(3) for i in 1:nPointsFit];  xH_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
+    vH_fit = [zeros(3) for i in 1:nPointsFit];  vH_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
+    v_fit = zeros(nPointsFit);   v_wf = zeros(wf_geodesic_num_points);
+    rH_fit = zeros(nPointsFit);  rH_wf = zeros(wf_geodesic_num_points);
+    aH_fit = [zeros(3) for i in 1:nPointsFit];  aH_wf = [zeros(3) for i in 1:wf_geodesic_num_points];
 
     # compute number of fitting frequencies used in fits to the fourier series expansion of the multipole moments
     if e == 0.0 && θmin == π/2   # circular equatorial
@@ -579,6 +577,20 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
     EEi, LLi, QQi, CCi = ConstantsOfMotion.compute_ELC(a, p, e, θmin, sign_Lz)   
 
     # store orbital params in arrays
+    idx_save_2 = 1
+    t_Fluxes = zeros(save_every);
+    E_arr = zeros(save_every);
+    E_dot_arr = zeros(save_every);
+    L_arr = zeros(save_every); 
+    L_dot_arr = zeros(save_every);
+    C_arr = zeros(save_every);
+    C_dot_arr = zeros(save_every);
+    Q_arr = zeros(save_every);
+    Q_dot_arr = zeros(save_every);
+    p_arr = zeros(save_every);
+    e_arr = zeros(save_every);
+    θmin_arr = zeros(save_every);
+
     E_t = EEi; 
     dE_dt = 0.;
     L_t = LLi; 
@@ -626,49 +638,62 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
 
         # geodesic
         # println("Line 628")
-        λλ, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi, dt_dλλ = MinoTimeGeodesics.compute_kerr_geodesic(a, p_t, e_t, θmin_t, sign_Lz, num_points_geodesic,
-        use_specified_params, geodesic_time_length, Δλi, reltol, abstol; ics=geodesic_ics, E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
-        # println("Line 631")
-        λλ = λλ .+ λ0   # λλ from the above function call starts from zero 
+        # λλ, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi, dt_dλλ = MinoTimeGeodesics.compute_kerr_geodesic(a, p_t, e_t, θmin_t, sign_Lz, num_points_geodesic,
+        # use_specified_params, geodesic_time_length, Δλi, reltol, abstol; ics=geodesic_ics, E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
+        sol = MinoTimeGeodesics.compute_kerr_geodesic(a, p_t, e_t, θmin_t, sign_Lz, num_points_geodesic,
+        use_specified_params, geodesic_time_length, Δλi, reltol, abstol; ics=geodesic_ics, E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false, interpolate_sol=false)
+        λmin, λmax = sol.t
+        tmin, tmax = sol(λmin, idxs = 1), sol(λmax, idxs = 1)
 
-        # check that geodesic output is as expected
-        if (length(λλ) != num_points_geodesic) || !isapprox(λλ[nPointsGeodesic], λ0 + compute_SF, rtol=1e-2)
-            println("Integration terminated at t = $(first(tt))")
-            println("total_num_points - len(sol) = $(num_points_geodesic-length(λλ))")
-            println("λλ[nPointsGeodesic] = $(λλ[nPointsGeodesic])")
-            println("λ0 + compute_SF = $(λ0 + compute_SF)")
-            break
+        if t0 == 0.0
+            compute_waveform_moments!(sol, t0, λmin, λmax, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, sign_Lz, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, Mij2_data_wf_temp, Mijk2_data_wf_temp, Mijkl2_data_wf_temp, Sij1_data_wf_temp, Sijk1_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, wf_geodesic_num_points, h, lmax_mass, lmax_current, Δλi, abstol, reltol, ra, p3, p4, zp, zm, idx_save_1)
+            update_waveform_arrays!(idx_save_1, wf_geodesic_num_points, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, Mij2_data_wf_temp, Sij2_data_wf_temp, Mijk3_data_wf_temp, Sijk3_data_wf_temp, Mijkl4_data_wf_temp)
+            update_trajectory_arrays!(t0, idx_save_1, λ0, λmin, λmax, sol, lambda, time, r, theta, phi, gamma, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm, save_traj, save_gamma)
+            idx_save_1 += 1
+
+            # also save constants of motion
+            t_Fluxes[idx_save_2] = t0;
+            E_arr[idx_save_2] = E_t;
+            E_dot_arr[idx_save_2] = dE_dt;
+            L_arr[idx_save_2] = L_t; 
+            L_dot_arr[idx_save_2] = dL_dt;
+            C_arr[idx_save_2] = C_t;
+            C_dot_arr[idx_save_2] = dC_dt;
+            Q_arr[idx_save_2] = Q_t;
+            Q_dot_arr[idx_save_2] = dQ_dt;
+            p_arr[idx_save_2] = p_t;
+            e_arr[idx_save_2] = e_t;
+            θmin_arr[idx_save_2] = θmin_t;
+            idx_save_2 += 1
         end
 
+        # now determining whether or not waveform is to be computed on this geodesic
+        while tmin <= t_save <= tmax
+            # save trajectory and moments
+            if idx_save_1 == save_every + 1
+                FittedInspiral.save_traj!(file, save_every, time, lambda, r, theta, phi, gamma, save_traj, save_gamma)
+                FittedInspiral.save_moments!(file, save_every, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
+                idx_save_1 = 1
+            end
+
+            compute_waveform_moments!(sol, t_save, λmin, λmax, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, sign_Lz, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, Mij2_data_wf_temp, Mijk2_data_wf_temp, Mijkl2_data_wf_temp, Sij1_data_wf_temp, Sijk1_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, wf_geodesic_num_points, h, lmax_mass, lmax_current, Δλi, abstol, reltol, ra, p3, p4, zp, zm, idx_save_1)
+            update_waveform_arrays!(idx_save_1, wf_geodesic_num_points, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, Mij2_data_wf_temp, Sij2_data_wf_temp, Mijk3_data_wf_temp, Sijk3_data_wf_temp, Mijkl4_data_wf_temp)
+            update_trajectory_arrays!(t_save, idx_save_1, λ0, λmin, λmax, sol, lambda, time, r, theta, phi, gamma, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm, save_traj, save_gamma)
+            idx_save_1 += 1
+            t_save += dt_save
+        end
+
+          
+
         # extract initial conditions for next geodesic.
-        λ0 = last(λλ); t0 = last(tt); geodesic_ics = @SArray [t0, last(psi), last(chi), last(ϕϕ)];
+        t0, PSI0, CHI0, PHI0 = sol(λmax);
+        λ0 = λmax + λ0;
 
-        # store physical trajectory — these functions omit last point since this overlaps with the start of the next geodesic
-        FittedInspiral.save_traj!(file, nPointsGeodesic-1, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, λλ, dt_dλλ, save_traj, save_gamma)
-
-        ###### COMPUTE MULTIPOLE MOMENTS FOR WAVEFORMS ######
-        chisq=[0.0];
+        ###### COMPUTE SELF-FORCE ######
         # compute fundamental frequencies
         ω = ConstantsOfMotion.KerrFreqs(a, p_t, e_t, θmin_t, E_t, L_t, Q_t, C_t, rplus, rminus);    # Mino time frequencies
         ωr=ω[1]; ωθ=ω[2]; ωϕ=ω[3];   # mino time frequencies
 
-        # println("Line 655")
-        if use_FDM
-            # println("Line 657")
-            # return a, E_t, L_t, C_t, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, tt, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, nPointsGeodesic, h, lmax_mass, lmax_current
-            EstimateMultipoleDerivs.FiniteDifferences.compute_waveform_moments_and_derivs!(a, E_t, L_t, C_t, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, tt, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, nPointsGeodesic, h, lmax_mass, lmax_current)
-            # println("Line 659")
-        else
-            # println("Line 661")
-            EstimateMultipoleDerivs.FourierFit.compute_waveform_moments_and_derivs!(a, E_t, L_t, C_t, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, λλ, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data, Mijk2_data, Mijkl2_data, Sij1_data, Sijk1_data, Mijk3_wf_temp, Mijkl4_wf_temp, Sij2_wf_temp, Sijk3_wf_temp, nHarm, ωr, ωθ, ωϕ, nPointsGeodesic, n_freqs, chisq, fit, lmax_mass, lmax_current)
-        end
-        # println("Line 664")
-
-
-        # store multipole data for waveforms — note that we only save the independent components
-        FittedInspiral.save_moments!(file, nPointsGeodesic-1, Mij2_data, Sij2_wf_temp, Mijk3_wf_temp, Sijk3_wf_temp, Mijkl4_wf_temp, lmax_mass, lmax_current)
-
-        ###### COMPUTE SELF-FORCE ######
         #  we want to perform each fit over a set of points which span a physical time range T_fit. In some cases, the frequencies are infinite, and we thus ignore them in our fitting procedure
         if e_t == 0.0 && θmin_t == π/2   # circular equatorial
             ωr = 1e50; ωθ =1e50;
@@ -686,48 +711,70 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         saveat_fit = T_Fit / (nPointsFit-1);    # the user specifies the number of points in each fit, i.e., the resolution, which determines at which points the interpolator should save data points
         Δλi_fit = saveat_fit;
         # compute geodesic into future and past of the final point in the (physical) piecewise geodesic computed above
-        midpoint_ics = @SArray [last(tt), last(psi), last(chi), last(ϕϕ)];
+        geodesic_ics = @SArray [t0, PSI0, CHI0, PHI0];
         
         λλ_fit, tt_fit, rr_fit, θθ_fit, ϕϕ_fit, r_dot_fit, θ_dot_fit, ϕ_dot_fit, r_ddot_fit, θ_ddot_fit, ϕ_ddot_fit, Γ_fit, psi_fit, chi_fit, dt_dλ_fit = 
-        MinoTimeGeodesics.compute_kerr_geodesic_past_and_future(a, p_t, e_t, θmin_t, sign_Lz, use_specified_params, nPointsFit, T_Fit, Δλi_fit, reltol, abstol; ics=midpoint_ics,
+        MinoTimeGeodesics.compute_kerr_geodesic_past_and_future(a, p_t, e_t, θmin_t, sign_Lz, use_specified_params, nPointsFit, T_Fit, Δλi_fit, reltol, abstol; ics=geodesic_ics,
         E=E_t, L=L_t, Q=Q_t, C=C_t, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
 
         compute_at=(nPointsFit÷2)+1;   # by construction, the end point of the physical geoodesic is at the center of the geodesic computed for the fit
         # check that that the midpoint of the fit geodesic arrays are equal to the final point of the physical arrays
-        if tt_fit[compute_at] != last(tt) || rr_fit[compute_at] != last(rr) || θθ_fit[compute_at] != last(θθ) || ϕϕ_fit[compute_at] != last(ϕϕ) ||
-            r_dot_fit[compute_at] != last(r_dot) || θ_dot_fit[compute_at] != last(θ_dot) || ϕ_dot_fit[compute_at] != last(ϕ_dot) || 
-            r_ddot_fit[compute_at] != last(r_ddot)|| θ_ddot_fit[compute_at] != last(θ_ddot)|| ϕ_ddot_fit[compute_at] != last(ϕ_ddot) ||
-            Γ_fit[compute_at] != last(Γ) || psi_fit[compute_at] != last(psi) || chi_fit[compute_at] != last(chi)
+        λ_val = λmax
+        t_val, rr, θθ, ϕϕ, dt_dτ, r_dot, θ_dot, ϕ_dot = compute_geodesic_arrays(sol, λ_val, a, E_t, L_t, p_t, e_t, θmin_t, p3, p4, zp, zm)
+        if tt_fit[compute_at] != t_val || rr_fit[compute_at] != rr || θθ_fit[compute_at] != θθ || ϕϕ_fit[compute_at] != ϕϕ ||
+            r_dot_fit[compute_at] != r_dot || θ_dot_fit[compute_at] != θ_dot || ϕ_dot_fit[compute_at] != ϕ_dot
+            # || r_ddot_fit[compute_at] != last(r_ddot)|| θ_ddot_fit[compute_at] != last(θ_ddot)|| ϕ_ddot_fit[compute_at] != last(ϕ_ddot) ||
+            # Γ_fit[compute_at] != last(Γ) || psi_fit[compute_at] != last(psi) || chi_fit[compute_at] != last(chi)
             println("Integration terminated at t = $(first(tt)). Reason: midpoint of fit geodesic does not align with final point of physical geodesic")
             break
         end
 
         chisq=[0.0];
-        # SelfAcceleration.FourierFit.selfAcc_Mino!(aSF_H_temp, aSF_BL_temp, xBL_fit, vBL_fit, aBL_fit, xH_fit, rH_fit, vH_fit, aH_fit, v_fit, λλ_fit, 
-        #     rr_fit, r_dot_fit, r_ddot_fit, θθ_fit, θ_dot_fit, θ_ddot_fit, ϕϕ_fit, ϕ_dot_fit, ϕ_ddot_fit, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
-        #     Mij2_data, Mijk2_data, Sij1_data, a, E_t, L_t, C_t, q, compute_at, nHarm,
-        #     ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit);
-        # println("Line 709")
         SelfAcceleration.FourierFit.selfAcc!(aSF_H_temp, aSF_BL_temp, xBL_fit, vBL_fit, aBL_fit, xH_fit, rH_fit, vH_fit, aH_fit, v_fit, λλ_fit,
             rr_fit, r_dot_fit, r_ddot_fit, θθ_fit, θ_dot_fit, θ_ddot_fit, ϕϕ_fit, ϕ_dot_fit, ϕ_ddot_fit, Mij5, Mij6, Mij7, Mij8, Mijk7, Mijk8, Sij5, Sij6,
-            Mij2_data, Mijk2_data, Sij1_data, a, q, E_t, L_t, C_t, compute_at, nHarm, ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit, lmax_mass, lmax_current);
+            Mij2_data_SF, Mijk2_data_SF, Sij1_data_SF, a, q, E_t, L_t, C_t, compute_at, nHarm, ωr, ωθ, ωϕ, nPointsFit, n_freqs, chisq, fit, lmax_mass, lmax_current);
         
-        # store self force values
-        if save_SF
-            FittedInspiral.save_self_acceleration!(file, aSF_BL_temp, aSF_H_temp)
-        end
-        
-        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
-        Δt = last(tt) - tt[1]
-        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, last(rr), last(θθ), last(ϕϕ), last(Γ), last(r_dot), last(θ_dot), last(ϕ_dot), aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
 
-        # save orbital constants and fluxes
-        FittedInspiral.save_constants!(file, last(tt), E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t, save_constants, save_fluxes)
+        # update orbital constants and fluxes — function takes as argument the fluxes computed at the end of the previous geodesic (which overlaps with the start of the current geodesic piece) in order to update the fluxes using the trapezium rule
+        Δt = t_val - sol(λmin, idxs = 1);
+        E_1, dE_dt, L_1, dL_dt, Q_1, dQ_dt, C_1, dC_dt, p_1, e_1, θmin_1 = EvolveConstants.Evolve_BL(Δt, a, rr, θθ, ϕϕ, dt_dτ, r_dot, θ_dot, ϕ_dot, aSF_BL_temp, E_t, dE_dt, L_t, dL_dt, Q_t, dQ_dt, C_t, dC_dt, p_t, e_t, θmin_t)
+        
 
         E_t = E_1; L_t = L_1; Q_t = Q_1; C_t = C_1; p_t = p_1; e_t = e_1; θmin_t = θmin_1;
         # flush(file)
+
+        # save constants of motion
+        t_Fluxes[idx_save_2] = t_val;
+        E_arr[idx_save_2] = E_t;
+        E_dot_arr[idx_save_2] = dE_dt;
+        L_arr[idx_save_2] = L_t; 
+        L_dot_arr[idx_save_2] = dL_dt;
+        C_arr[idx_save_2] = C_t;
+        C_dot_arr[idx_save_2] = dC_dt;
+        Q_arr[idx_save_2] = Q_t;
+        Q_dot_arr[idx_save_2] = dQ_dt;
+        p_arr[idx_save_2] = p_t;
+        e_arr[idx_save_2] = e_t;
+        θmin_arr[idx_save_2] = θmin_t;
+        idx_save_2 += 1
+
+        # save constants and fluxes
+        if idx_save_2 == save_every + 1
+            FittedInspiral.save_constants!(file, save_every, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
+            idx_save_2 = 1
+        end
     end
     print("Completion: 100%   \r")
+
+    # save remaining data
+    if idx_save_1 != 1
+        @views FittedInspiral.save_traj!(file, idx_save_1-1, time, lambda, r, theta, phi, gamma, save_traj, save_gamma)
+        @views FittedInspiral.save_moments!(file, idx_save_1-1, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
+    end
+
+    if idx_save_2 != 1
+        @views FittedInspiral.save_constants!(file, idx_save_2-1, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
+    end
 
     if JIT
         rm(sol_filename)
@@ -736,6 +783,158 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         println("File created: " * solution_fname(a, p, e, θmin, q, psi_0, chi_0, phi_0, nHarm, fit_time_range_factor, fit, lmax_mass, lmax_current, data_path))
         close(file)
     end
+end
+
+function compute_geodesic_arrays(sol::SciMLBase.ODESolution, λ_val::Float64, a::Float64, E::Float64, L::Float64, p::Float64, e::Float64, θmin::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64)
+    # deconstruct solution
+    t = sol(λ_val, idxs=1);
+    psi = sol(λ_val, idxs=2);
+    chi = mod.(sol(λ_val, idxs=3), 2π);
+    ϕ = sol(λ_val, idxs=4);
+
+    # compute time derivatives (wrt λ)
+    dt_dλ = MinoTimeGeodesics.dt_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    dψ_dλ = MinoTimeGeodesics.dψ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    dχ_dλ = MinoTimeGeodesics.dχ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+    dϕ_dλ = MinoTimeGeodesics.dϕ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+
+    # compute BL coordinates r, θ and their time derivatives (wrt λ)
+    r = MinoTimeGeodesics.r(psi, p, e)
+    θ = acos((π/2<chi<1.5π) ? -sqrt(MinoTimeGeodesics.z(chi, θmin)) : sqrt(MinoTimeGeodesics.z(chi, θmin)))
+
+    dr_dλ = MinoTimeGeodesics.dr_dλ(dψ_dλ, psi, p, e);
+    dθ_dλ = MinoTimeGeodesics.dθ_dλ(dχ_dλ, chi, θ, θmin);
+
+    # compute derivatives wrt t
+    dr_dt = dr_dλ / dt_dλ
+    dθ_dt = dθ_dλ / dt_dλ 
+    dϕ_dt = dϕ_dλ / dt_dλ 
+
+    # compute gamma factor
+    v = [dr_dt, dθ_dt, dϕ_dt] # v=dxi/dt
+    dt_dτ = MinoTimeGeodesics.Γ(r, θ, ϕ, v, a)
+    
+    # # substitute solution back into geodesic equation to find second derivatives of BL coordinates (wrt t)
+    # d2r_dt2 = MinoTimeGeodesics.dr2_dt2(r, θ, ϕ, dr_dt, dθ_dt, dϕ_dt, a)
+    # d2θ_dt2 = MinoTimeGeodesics.dθ2_dt2(r, θ, ϕ, dr_dt, dθ_dt, dϕ_dt, a)
+    # d2ϕ_dt2 = MinoTimeGeodesics.dϕ2_dt2(r, θ, ϕ, dr_dt, dθ_dt, dϕ_dt, a)
+    return t, r, θ, ϕ, dt_dτ, dr_dt, dθ_dt, dϕ_dt
+end
+
+function update_waveform_arrays!(idx_save::Int64, wf_geodesic_num_points::Int64, Mij2_data::AbstractArray, Sij2_data::AbstractArray, Mijk3_data::AbstractArray, Sijk3_data::AbstractArray, Mijkl4_data::AbstractArray, Mij2_data_wf_temp::AbstractArray, Sij2_data_wf_temp::AbstractArray, Mijk3_data_wf_temp::AbstractArray, Sijk3_data_wf_temp::AbstractArray, Mijkl4_data_wf_temp::AbstractArray)
+    compute_at = (wf_geodesic_num_points÷2)+1;
+    @inbounds for i = 1:3, j = 1:3
+        Mij2_data[i, j][idx_save] = Mij2_data_wf_temp[i, j][compute_at];
+        Sij2_data[i, j][idx_save] = Sij2_data_wf_temp[i, j][compute_at];
+        @inbounds for k = 1:3
+            Mijk3_data[i, j, k][idx_save] = Mijk3_data_wf_temp[i, j, k][compute_at];
+            Sijk3_data[i, j, k][idx_save] = Sijk3_data_wf_temp[i, j, k][compute_at];
+            @inbounds for l = 1:3
+                Mijkl4_data[i, j, k, l][idx_save] = Mijkl4_data_wf_temp[i, j, k, l][compute_at];
+            end
+        end
+    end
+end
+
+function update_trajectory_arrays!(t0::Float64, idx_save::Int64, λ0::Float64, λmin::Float64, λmax::Float64, sol::SciMLBase.ODESolution, lambda::Vector{Float64}, time::Vector{Float64}, r::Vector{Float64}, theta::Vector{Float64}, phi::Vector{Float64}, gamma::Vector{Float64}, a::Float64, E::Float64, L::Float64, p::Float64, e::Float64, θmin::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64, save_traj::Bool, save_gamma::Bool)
+    λ_saveat = t0 == 0.0 ? 0.0 : find_λ(t0, sol, λmin, λmax, tol = 1e-14)
+    t, psi, chi, ϕ  = sol(λ_saveat)
+    time[idx_save] = t
+    lambda[idx_save] = λ_saveat + λ0
+
+    if save_traj || save_gamma
+        rr = MinoTimeGeodesics.r(psi, p, e)
+        θ = acos((π/2<chi<1.5π) ? -sqrt(MinoTimeGeodesics.z(chi, θmin)) : sqrt(MinoTimeGeodesics.z(chi, θmin)))
+
+        if save_traj
+            r[idx_save] = rr
+            theta[idx_save] = θ
+            phi[idx_save] = ϕ
+        end
+
+        if save_gamma
+            dt_dλ = MinoTimeGeodesics.dt_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+            dψ_dλ = MinoTimeGeodesics.dψ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+            dχ_dλ = MinoTimeGeodesics.dχ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+            dϕ_dλ = MinoTimeGeodesics.dϕ_dλ(t, psi, chi, ϕ, a, E, L, p, e, θmin, p3, p4, zp, zm)
+
+            dr_dλ = MinoTimeGeodesics.dr_dλ(dψ_dλ, psi, p, e);
+            dθ_dλ = MinoTimeGeodesics.dθ_dλ(dχ_dλ, chi, θ, θmin);
+
+            # compute derivatives wrt t
+            dr_dt = dr_dλ / dt_dλ
+            dθ_dt = dθ_dλ / dt_dλ 
+            dϕ_dt = dϕ_dλ / dt_dλ 
+
+            # compute gamma factor
+            v = [dr_dt, dθ_dt, dϕ_dt] # v=dxi/dt
+            gamma[idx_save] = MinoTimeGeodesics.Γ(rr, θ, ϕ, v, a)
+        end
+    end
+end
+
+function compute_waveform_moments!(sol::SciMLBase.ODESolution, t_save::Float64, λmin::Float64, λmax::Float64, a::Float64, E::Float64, L::Float64, Q::Float64, C::Float64, p::Float64, e::Float64, θmin::Float64, sign_Lz::Int64, q::Float64, xBL_wf::AbstractArray, vBL_wf::AbstractArray, aBL_wf::AbstractArray, xH_wf::AbstractArray, rH_wf::AbstractArray, vH_wf::AbstractArray, aH_wf::AbstractArray, v_wf::AbstractArray, Mij2_data_wf_temp::AbstractArray, Mijk2_data_wf_temp::AbstractArray, Mijkl2_data_wf_temp::AbstractArray, Sij1_data_wf_temp::AbstractArray, Sijk1_data_wf_temp::AbstractArray, Mijk3_data_wf_temp::AbstractArray, Mijkl4_data_wf_temp::AbstractArray, Sij2_data_wf_temp::AbstractArray, Sijk3_data_wf_temp::AbstractArray, wf_geodesic_num_points::Int64, h::Float64, lmax_mass::Int64, lmax_current::Int64, Δλi_fit::Float64, abstol::Float64, reltol::Float64, ra::Float64, p3::Float64, p4::Float64, zp::Float64, zm::Float64, idx_save::Int64)
+    if iseven(wf_geodesic_num_points)
+        throw(DomainError(wf_geodesic_num_points, "wf_geodesic_num_points must be odd"))
+    end
+
+    use_custom_ics = true; use_specified_params = true;
+    T_Fit = (wf_geodesic_num_points - 1) * h 
+    # find value of λ at which t = t_save
+    λ_saveat = t_save == 0.0 ? 0.0 : find_λ(t_save, sol, λmin, λmax, tol=1e-14)
+    ics = sol(λ_saveat)
+    ics = SVector{4, Float64}([ics[1], ics[2], mod(ics[3], 2π), ics[4]]) # ensure that chi is in the range [0, 2π]
+
+        
+    λλ, tt, rr, θθ, ϕϕ, r_dot, θ_dot, ϕ_dot, r_ddot, θ_ddot, ϕ_ddot, Γ, psi, chi, dt_dλ = 
+    MinoTimeGeodesics.compute_kerr_geodesic_past_and_future(a, p, e, θmin, sign_Lz, use_specified_params, wf_geodesic_num_points, T_Fit, Δλi_fit, reltol, abstol; ics=ics, E=E, L=L, Q=Q, C=C, ra=ra, p3=p3,p4=p4, zp=zp, zm=zm, save_to_file=false)
+
+    # check that the gap between each point is approximates equal to h (required for FD to hold)
+    diff_λ = diff(λλ)
+    if maximum(abs.(diff_λ .- h)) > 1e-8
+        throw(DomainError(diff_λ, "The difference between each point in the geodesic is not equal to h. This is required for finite differences to hold."))
+    end
+
+    # also check that the midpoint of the computed geodesic matches the specified midpoint
+    r_true = MinoTimeGeodesics.r(ics[2], p, e)
+    θ_true = acos((π/2<ics[3]<1.5π) ? -sqrt(MinoTimeGeodesics.z(ics[3], θmin)) : sqrt(MinoTimeGeodesics.z(ics[3], θmin)))
+    compute_at = (wf_geodesic_num_points÷2)+1
+    if ics != [tt[compute_at], psi[compute_at], chi[compute_at], ϕϕ[compute_at]]
+        throw(DomainError(ics, "The initial conditions of the geodesic do not match the specified initial conditions. ics = $(ics), [tt, psi, chi, phi] = [$(tt[compute_at]), $(psi[compute_at]), $(chi[compute_at]), $(ϕϕ[compute_at])], compute_at = $(compute_at)"))
+    end
+    if ics[1] != tt[compute_at] || r_true != rr[compute_at] || θ_true != θθ[compute_at] || ics[4] != ϕϕ[compute_at]
+        throw(DomainError("The midpoint of the geodesic does not match the specified midpoint. idx_save = $(idx_save), t_true = $(t_save), t[compute_at] = $(tt[compute_at]), r_true = $(r_true), θ_true = $(θ_true), rr[compute_at] = $(rr[compute_at]), θθ[compute_at] = $(θθ[compute_at]), ϕ_true = $(ics[4]), ϕϕ[compute_at] = $(ϕϕ[compute_at])"))
+    end
+    
+    EstimateMultipoleDerivs.FiniteDifferences.compute_waveform_moments_and_derivs!(a, E, L, C, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, tt, rr, r_dot, r_ddot, θθ, θ_dot, θ_ddot, ϕϕ, ϕ_dot, ϕ_ddot, Mij2_data_wf_temp, Mijk2_data_wf_temp, Mijkl2_data_wf_temp, Sij1_data_wf_temp, Sijk1_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, wf_geodesic_num_points, h, lmax_mass, lmax_current)
+end
+
+function find_λ(T::Float64, sol::SciMLBase.ODESolution, a::Float64, b::Float64; tol::Float64=1e-8, max_iter::Int64=1000)
+    fa = sol(a, idxs = 1) - T
+    fb = sol(b, idxs = 1) - T
+
+    if fa * fb > 0
+        error("Function must have opposite signs at the endpoints a and b.")
+    end
+
+    for i in 1:max_iter
+        c = (a + b) / 2
+        fc = sol(c, idxs = 1) - T
+
+        if abs(fc) < tol || (b - a)/2 < tol
+            return c  # root found
+        end
+
+        if fa * fc < 0
+            b = c
+            fb = fc
+        else
+            a = c
+            fa = fc
+        end
+    end
+
+    error("Maximum iterations reached without convergence.")
 end
 
 function solution_fname(a::Float64, p::Float64, e::Float64, θmin::Float64, q::Float64, psi_0::Float64, chi_0::Float64, phi_0::Float64, nHarm::Int64, fit_time_range_factor::Float64, fit::String, lmax_mass::Int64, lmax_current::Int64, data_path::String)

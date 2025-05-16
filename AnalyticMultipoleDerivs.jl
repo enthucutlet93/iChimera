@@ -269,57 +269,40 @@ end
 
 
 # computes the mulitpole derivatives necessary for computing the waveform
-@views function AnalyticMultipoleDerivs_WF!(r::AbstractVector{Float64}, θ::AbstractVector{Float64}, ϕ::AbstractVector{Float64}, r_dot::AbstractVector{Float64}, θ_dot::AbstractVector{Float64}, ϕ_dot::AbstractVector{Float64}, r_ddot::AbstractVector{Float64}, θ_ddot::AbstractVector{Float64}, ϕ_ddot::AbstractVector{Float64}, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, a::Float64, q::Float64, E::Float64, L::Float64, C::Float64, lmax_mass::Int64, lmax_current::Int64)
-    xBL =[zeros(3) for i in eachindex(r)]; vBL = [zeros(3) for i in eachindex(r)]; aBL = [zeros(3) for i in eachindex(r)]; 
-
-    # initialize derivative arrays
-    dxBL_dt=[zeros(3) for i in eachindex(r)]; d2xBL_dt=[zeros(3) for i in eachindex(r)]; d3xBL_dt=[zeros(3) for i in eachindex(r)]; 
-    d4xBL_dt=[zeros(3) for i in eachindex(r)]; d5xBL_dt=[zeros(3) for i in eachindex(r)]; d6xBL_dt=[zeros(3) for i in eachindex(r)]; 
-    d7xBL_dt=[zeros(3) for i in eachindex(r)]; d8xBL_dt=[zeros(3) for i in eachindex(r)];
-
-    dx_dλ=[zeros(3) for i in eachindex(r)]; d2x_dλ=[zeros(3) for i in eachindex(r)]; d3x_dλ=[zeros(3) for i in eachindex(r)]; 
-    d4x_dλ=[zeros(3) for i in eachindex(r)]; d5x_dλ=[zeros(3) for i in eachindex(r)]; d6x_dλ=[zeros(3) for i in eachindex(r)];
-    d7x_dλ=[zeros(3) for i in eachindex(r)]; d8x_dλ=[zeros(3) for i in eachindex(r)];
-
-    xH=[zeros(3) for i in eachindex(r)]; dxH_dt=[zeros(3) for i in eachindex(r)]; d2xH_dt=[zeros(3) for i in eachindex(r)];
-    d3xH_dt=[zeros(3) for i in eachindex(r)]; d4xH_dt=[zeros(3) for i in eachindex(r)]; d5xH_dt=[zeros(3) for i in eachindex(r)];
-    d6xH_dt=[zeros(3) for i in eachindex(r)]; d7xH_dt=[zeros(3) for i in eachindex(r)]; d8xH_dt=[zeros(3) for i in eachindex(r)];
-    
+@views function AnalyticMultipoleDerivs_WF!(r::Float64, θ::Float64, ϕ::Float64, r_dot::Float64, θ_dot::Float64, ϕ_dot::Float64, r_ddot::Float64, θ_ddot::Float64, ϕ_ddot::Float64, Mij2::AbstractArray, Mijk3::AbstractArray, Mijkl4::AbstractArray, Sij2::AbstractArray, Sijk3::AbstractArray, a::Float64, q::Float64, E::Float64, L::Float64, C::Float64, lmax_mass::Int64, lmax_current::Int64, xBL::AbstractVector{Float64}, vBL::AbstractVector{Float64}, aBL::AbstractVector{Float64}, dxBL_dt::AbstractVector{Float64}, d2xBL_dt::AbstractVector{Float64}, d3xBL_dt::AbstractVector{Float64}, d4xBL_dt::AbstractVector{Float64}, d5xBL_dt::AbstractVector{Float64}, d6xBL_dt::AbstractVector{Float64}, d7xBL_dt::AbstractVector{Float64}, d8xBL_dt::AbstractVector{Float64},dx_dλ::AbstractVector{Float64}, d2x_dλ::AbstractVector{Float64}, d3x_dλ::AbstractVector{Float64}, d4x_dλ::AbstractVector{Float64}, d5x_dλ::AbstractVector{Float64}, d6x_dλ::AbstractVector{Float64},d7x_dλ::AbstractVector{Float64}, d8x_dλ::AbstractVector{Float64},xH::AbstractVector{Float64}, dxH_dt::AbstractVector{Float64}, d2xH_dt::AbstractVector{Float64},d3xH_dt::AbstractVector{Float64}, d4xH_dt::AbstractVector{Float64}, d5xH_dt::AbstractVector{Float64},d6xH_dt::AbstractVector{Float64}, d7xH_dt::AbstractVector{Float64}, d8xH_dt::AbstractVector{Float64}) 
     ### COMPUTE BL COORDINATE DERIVATIVES ###
-    @inbounds for i in eachindex(r)
-        xBL[i] = [r[i], θ[i], ϕ[i]];
-        vBL[i] = [r_dot[i], θ_dot[i], ϕ_dot[i]];
-        aBL[i] = [r_ddot[i], θ_ddot[i], ϕ_ddot[i]];
+    xBL[1] = r; xBL[2] = θ; xBL[3] = ϕ;
+    vBL[1] = r_dot; vBL[2] = θ_dot; vBL[3] = ϕ_dot;
+    aBL[1] = r_ddot; aBL[2] = θ_ddot; aBL[3] = ϕ_ddot;
 
-        AnalyticCoordinateDerivs.ComputeDerivs!(xBL[i], sign(vBL[i][1]), sign(vBL[i][2]), dxBL_dt[i], d2xBL_dt[i], d3xBL_dt[i], d4xBL_dt[i], d5xBL_dt[i], d6xBL_dt[i], d7xBL_dt[i], d8xBL_dt[i],
-        dx_dλ[i], d2x_dλ[i], d3x_dλ[i], d4x_dλ[i], d5x_dλ[i], d6x_dλ[i], d7x_dλ[i], d8x_dλ[i], a, E, L, C)
+    AnalyticCoordinateDerivs.ComputeDerivs!(xBL, sign(vBL[1]), sign(vBL[2]), dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,
+    dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ, d7x_dλ, d8x_dλ, a, E, L, C)
 
-        ### COMPUTE HARMONIC COORDINATE DERIVATIVES ###
-        HarmonicCoordDerivs.compute_harmonic_derivs!(xBL[i], dxBL_dt[i], d2xBL_dt[i], d3xBL_dt[i], d4xBL_dt[i], d5xBL_dt[i], d6xBL_dt[i], d7xBL_dt[i], d8xBL_dt[i],
-        xH[i], dxH_dt[i], d2xH_dt[i], d3xH_dt[i], d4xH_dt[i], d5xH_dt[i], d6xH_dt[i], d7xH_dt[i], d8xH_dt[i], a)
-    end
+    ### COMPUTE HARMONIC COORDINATE DERIVATIVES ###
+    HarmonicCoordDerivs.compute_harmonic_derivs!(xBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,
+    xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, d5xH_dt, d6xH_dt, d7xH_dt, d8xH_dt, a)
     
     @inbounds for i=1:3, j=1:3
         if lmax_mass >= 2
-            Mij2[i, j] = AnalyticMultipoleDerivs.Mij2.(xH, dxH_dt, d2xH_dt, q, i, j)
+            Mij2[i, j] = AnalyticMultipoleDerivs.Mij2(xH, dxH_dt, d2xH_dt, q, i, j)
         end
 
         if lmax_current >= 2
-            Sij2[i, j] = AnalyticMultipoleDerivs.Sij2.(xH, dxH_dt, d2xH_dt, d3xH_dt, q, i, j)
+            Sij2[i, j] = AnalyticMultipoleDerivs.Sij2(xH, dxH_dt, d2xH_dt, d3xH_dt, q, i, j)
         end
 
         @inbounds for k=1:3
             if lmax_mass >= 3
-                Mijk3[i, j, k] = AnalyticMultipoleDerivs.Mijk3.(xH, dxH_dt, d2xH_dt, d3xH_dt, q, i, j, k)
+                Mijk3[i, j, k] = AnalyticMultipoleDerivs.Mijk3(xH, dxH_dt, d2xH_dt, d3xH_dt, q, i, j, k)
             end
 
             if lmax_current == 3
-                Sijk3[i, j, k] = AnalyticMultipoleDerivs.Sijk3.(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, q, i, j, k)
+                Sijk3[i, j, k] = AnalyticMultipoleDerivs.Sijk3(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, q, i, j, k)
             end
 
             if lmax_mass == 4
                 @inbounds for l=1:3
-                    Mijkl4[i, j, k, l] = AnalyticMultipoleDerivs.Mijkl4.(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, q, i, j, k, l)
+                    Mijkl4[i, j, k, l] = AnalyticMultipoleDerivs.Mijkl4(xH, dxH_dt, d2xH_dt, d3xH_dt, d4xH_dt, q, i, j, k, l)
                 end
             end
         end

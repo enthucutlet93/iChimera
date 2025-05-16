@@ -20,6 +20,7 @@ dependencies = [
     "Interpolations",
     "IJulia",
     "CairoMakie",
+    "SciMLBase",
     ]
     
 Pkg.add(dependencies)

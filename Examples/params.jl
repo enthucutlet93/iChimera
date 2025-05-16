@@ -19,6 +19,9 @@ lmax_current = 3 # maximum current-type multipole moment l mode to include in th
 t_max_secs = (10^-3) * year / 3.; # maximum orbit evolution time in seconds
 Mass_MBH = 1e6 * Msol; # mass of the massive black hole
 
+dt_save = 5.0; # time interval in seconds between saving data points (e.g., waveform, trajectory, etc.)
+save_every = 1000; # save solution to file after every save_every steps
+
 # initial angle variables
 psi0 = 0.1; # (initial condition) intial radial angle variable
 chi0 = 0.2; # (initial condition) initial polar angle variable
@@ -53,7 +56,7 @@ Gpc_M_units = 1.0e9 * pc / length_conversion_factor;
 strain_to_SI = mass_ratio / obs_distance / Gpc_M_units;
 
 ############################################# DO NOT CHANGE WITHOUT GOOD REASON #############################################
-inspiral_type = "Fitted"; # type of inspiral: "Fitted" will use Fourier fits and finite difference methods (if use_FDM = true), "Analytic" will not use any Fourier fits or finite difference methods
+inspiral_type = "Analytic"; # type of inspiral: "Fitted" will use Fourier fits and finite difference methods (if use_FDM = true), "Analytic" will not use any Fourier fits or finite difference methods
 
 reltol =  1e-14; # relative tolerance for the geodesic solver
 abstol =  1e-14; # absolute tolerance for the geodesic solver
@@ -68,5 +71,5 @@ fit_time_range_factor = 0.5; # determines the "length", Δλ, of the time series
 h=0.001; # time step between points in geodesic solver — fixed due to use of finite differences to compute waveform mulitpole moment derivatives
 
 emri = Chimera.EMRI(a, p, e, inclination, inclination_type, sign_Lz, mass_ratio, lmax_mass, lmax_current, psi0, chi0, phi0, frame, ThetaS,
-        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, data_path, t_max_secs, Mass_MBH, obs_distance, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarm,
-        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_traj, save_SF, save_constants, save_fluxes, save_gamma);
+        PhiS, ThetaK, PhiK, ThetaObs, PhiObs, dt_save, data_path, t_max_secs, Mass_MBH, obs_distance, use_FDM, reltol, abstol, fit_type, nPointsFit, nHarm,
+        fit_time_range_factor, h, compute_SF_frac, inspiral_type, save_every, save_traj, save_constants, save_fluxes, save_gamma);
