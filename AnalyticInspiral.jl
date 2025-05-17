@@ -593,6 +593,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
                 AnalyticInspiral.save_traj!(file, save_every, time, r, theta, phi, gamma, save_traj, save_gamma)
                 AnalyticInspiral.save_moments!(file, save_every, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
                 idx_save_1 = 1
+                flush(file)
             end
 
             compute_waveform_moments!(integrator, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, q, Mij2_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, lmax_mass, lmax_current, ra, p3, p4, zp, zm, xBL, vBL, aBL, dxBL_dt, d2xBL_dt, d3xBL_dt, d4xBL_dt, d5xBL_dt, d6xBL_dt, d7xBL_dt, d8xBL_dt,dx_dλ, d2x_dλ, d3x_dλ, d4x_dλ, d5x_dλ, d6x_dλ,d7x_dλ, d8x_dλ,xH, dxH_dt, d2xH_dt,d3xH_dt, d4xH_dt, d5xH_dt,d6xH_dt, d7xH_dt, d8xH_dt)
@@ -650,6 +651,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
             if idx_save_2 == save_every + 1
                 AnalyticInspiral.save_constants!(file, save_every, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
                 idx_save_2 = 1
+                flush(file)
             end
 
             # update ODE params

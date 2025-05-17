@@ -674,6 +674,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
                 FittedInspiral.save_traj!(file, save_every, time, lambda, r, theta, phi, gamma, save_traj, save_gamma)
                 FittedInspiral.save_moments!(file, save_every, Mij2_data, Sij2_data, Mijk3_data, Sijk3_data, Mijkl4_data, lmax_mass, lmax_current)
                 idx_save_1 = 1
+                flush(file)
             end
 
             compute_waveform_moments!(sol, t_save, λmin, λmax, a, E_t, L_t, Q_t, C_t, p_t, e_t, θmin_t, sign_Lz, q, xBL_wf, vBL_wf, aBL_wf, xH_wf, rH_wf, vH_wf, aH_wf, v_wf, Mij2_data_wf_temp, Mijk2_data_wf_temp, Mijkl2_data_wf_temp, Sij1_data_wf_temp, Sijk1_data_wf_temp, Mijk3_data_wf_temp, Mijkl4_data_wf_temp, Sij2_data_wf_temp, Sijk3_data_wf_temp, wf_geodesic_num_points, h, lmax_mass, lmax_current, Δλi, abstol, reltol, ra, p3, p4, zp, zm, idx_save_1)
@@ -762,6 +763,7 @@ function compute_inspiral(a::Float64, p::Float64, e::Float64, θmin::Float64, si
         if idx_save_2 == save_every + 1
             FittedInspiral.save_constants!(file, save_every, t_Fluxes, E_arr, E_dot_arr, L_arr, L_dot_arr, Q_arr, Q_dot_arr, C_arr, C_dot_arr, p_arr, e_arr, θmin_arr, save_constants, save_fluxes)
             idx_save_2 = 1
+            flush(file)
         end
     end
     print("Completion: 100%   \r")
